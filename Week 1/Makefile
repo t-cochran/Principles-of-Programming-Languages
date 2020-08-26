@@ -1,5 +1,5 @@
 #
-#  Makefile for scratch.scala
+#  Makefile for week1_readings.scala
 #
 build:
 	@scalac week1_readings.scala -deprecation

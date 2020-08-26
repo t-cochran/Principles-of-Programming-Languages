@@ -25,8 +25,10 @@ object week1 {
 
         /**
          * Reverse a list.
-         *      
+         *      reverse( List[ A ] ) 
          */
+        val x_reversed : List[ Int ] = x.reverse;
+        printList( x_reversed );
 
     }
 
@@ -35,8 +37,11 @@ object week1 {
 
         for ( elt <- x ) {
             
-            println( s"${ elt }");
+            print( s"${ elt } ");
 
         }
+
+        println("");
+        
     }
 }
