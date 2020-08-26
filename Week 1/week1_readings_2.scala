@@ -17,7 +17,7 @@ object SetsPractice {
     def main( args : Array[ String ] ) : Unit = {
 
       /* Header */
-      println("[ Maps ]" + "="*50 + "]\n");
+      println("[ Sets ]" + "="*50 + "]\n");
 
       /* Create a set */
       val books = Set( "Don Quixote", 
