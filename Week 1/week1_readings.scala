@@ -4,6 +4,7 @@
   * Reference: https://www.scala-lang.org/api/current/scala/collection/immutable/List.html
   */
 object week1 {
+
     /**
       *  Main -- Program Entry
       *
@@ -42,7 +43,17 @@ object week1 {
           */
         val x_no_dupes : List[ Int ] = x.distinct;
         printList( x_no_dupes );
+
+        /**
+          * Sort a list.
+          *     List[ A ].sortWith( )
+          */
+        val x_sorted : List[ Int ] = x.sortWith( _ < _ );
+        printList( x_sorted );
+        
     }
+
+    /* ------------------------------------------------------------------------- */
 
     /* Method: Print the contents of a list */
     def printList( x : List[ Int ] ) : Unit = {
