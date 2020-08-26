@@ -10,6 +10,7 @@ run:
 	@scala ArrayMethods
 	@scala MapsPractice
 	@scala SetsPractice
+	@scala functionPractice
 
 clean:
 	rm *.class

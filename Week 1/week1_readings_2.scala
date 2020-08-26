@@ -73,7 +73,7 @@ object SetsPractice {
 }
 /* --------------------------------------------------------------- */
 
-/* Functions :  */
+/* Functions : first class entities */
 object functionPractice {
   /**
     *  Main -- Program Entry
@@ -82,15 +82,83 @@ object functionPractice {
     *        i.e. a void return.
     */
   def main( args : Array[ String ] ) : Unit = {
+    
+    /* Header */
+    println("[ Functions ]" + "="*50 + "]\n");
+    
+    /* Returns (x + 2)^2 */
+    val ret_1 = function_1( 3 );
+    println( s"ret_1: ${ ret_1 } \n" );
 
+    /* Returns string repeated n times */
+    val ret_2 = function_2( "-TEST-", 5 );
+    println( s"ret_2: ${ ret_2 } \n" );
 
+    /* Returns string repeated n times */
+    val ret_3 = function_3( "-TEST2-", 5 );
+    println( s"ret_3: ${ ret_3 } \n" );
 
+    /* Returns x! */
+    val ret_4 = factorial( 4 );
+    println( s"4! = ${ ret_4 }" );
+    val ret_5 = factorial( 5 );
+    println( s"5! = ${ ret_5 }" );
+
+    /* Function that calls another function */
+    val ret_6 = function_4( factorial, 5 );
+    println( s"function calling factorial( 5 ): ${ ret_6 }" );
+
+    /* Footer */
+    println("\n" + "-"*65 + "\n");
   }
 
+  /**
+   * Pass x, return (x+2)^2
+   */
+  def function_1( x : Int ) : Int = {
+    val y = x + 2;
+    val z = y * y;
+    return z;
+  }
 
+  /**
+   * Pass string and integer, return string repeated integer times
+   */
+  def function_2( x : String, y : Int ) : String = {
+    var ret = "";
+    for ( i <- 1 to y ) {
+      ret += x;
+    }
+    return ret;
+  }
 
+  /**
+   * Pass string and integer, return string repeated integer times
+   */
+  def function_3( x : String, y : Int) : String = {
+    ( 1 to y ).foldLeft( "" ) ( ( v, _ ) => v + x )
+  }
 
+  /**
+   * Computes the factorial x! recursively
+   */
+  def factorial( x : Int ) : Int = {
+    if ( x <= 0 ) {
+      return 1;
+    }
+    else {
+      return x * factorial( x - 1 );
+    }
+  }
 
-
-
+  /**
+   * Function as arguments to other functions
+   * 
+   * Note -- func : Int => Int is a function that takes an integer
+   *         and returns an integer
+   */
+  def function_4( func : Int => Int, x : Int) : Int = {
+    return func( x );
+  }
 }
+/* --------------------------------------------------------------- */
