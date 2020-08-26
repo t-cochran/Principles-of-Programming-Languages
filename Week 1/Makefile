@@ -5,7 +5,8 @@ build:
 	@scalac week1_readings.scala -deprecation
 
 run:
-	@scala week1
+	@scala ListMethods
+	@scala ArrayMethods
 
 clean:
 	rm *.class
