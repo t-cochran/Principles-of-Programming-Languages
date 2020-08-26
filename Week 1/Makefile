@@ -7,6 +7,7 @@ build:
 run:
 	@scala ListMethods
 	@scala ArrayMethods
+	@scala MapsPractice
 
 clean:
 	rm *.class
