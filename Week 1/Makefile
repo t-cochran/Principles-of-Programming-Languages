@@ -2,12 +2,14 @@
 #  Makefile for week1_readings.scala
 #
 build:
-	@scalac week1_readings.scala -deprecation
+	@scalac week1_readings_1.scala -deprecation
+	@scalac week1_readings_2.scala -deprecation
 
 run:
 	@scala ListMethods
 	@scala ArrayMethods
 	@scala MapsPractice
+	@scala SetsPractice
 
 clean:
 	rm *.class

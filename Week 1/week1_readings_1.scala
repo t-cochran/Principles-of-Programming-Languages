@@ -1,4 +1,6 @@
 /** 
+  * File: week1_readings_1.scala 
+  * 
   * Working through the scala standard library.
   * 
   * Reference: https://www.scala-lang.org/api/current/scala/collection/immutable/List.html
@@ -227,3 +229,4 @@ object MapsPractice {
     }
 
 }
+/* --------------------------------------------------------------- */
