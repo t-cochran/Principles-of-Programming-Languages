@@ -11,6 +11,8 @@ run:
 	@scala MapsPractice
 	@scala SetsPractice
 	@scala functionPractice
+	@scala recursionPractice
+	@scala loopsToRecursion
 
 clean:
 	rm *.class

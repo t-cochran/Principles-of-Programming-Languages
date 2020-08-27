@@ -162,3 +162,121 @@ object functionPractice {
   }
 }
 /* --------------------------------------------------------------- */
+
+object recursionPractice {
+  /**
+    *  Main -- Program Entry
+    *
+    *  Note: 'Unit' is return type if nothing is returned
+    *        i.e. a void return.
+    */
+  def main( args : Array[ String ] ) : Unit = {
+    
+    /* Header */
+    println("[ recursionPractice ]" + "="*50 + "]\n");
+    
+    /* Create a list of integers */
+    val test_list : List[ Int ] = List( 2, 4, 6, 8, 10, 11 );
+    val has_odd_number : Boolean = hasOddNumber( test_list, 0 );
+    println( s"Has odd number: ${ has_odd_number }" );
+
+    /* Footer */
+    println("\n" + "-"*65 + "\n");
+
+  }
+
+  /**
+   * Recursive function to check for odd number in a list.
+   */
+  def hasOddNumber( list : List[ Int ], j : Int ) : Boolean = {
+
+    if ( j >= list.length ) {
+      return false;
+    }
+    else if ( list( j ) % 2 == 1 ) {
+      return true;
+    }
+    else {
+      hasOddNumber( list, j + 1 );
+    }
+  }
+}
+/* --------------------------------------------------------------- */
+
+object loopsToRecursion {
+
+  def main( args : Array[ String ] ) : Unit = {
+
+    /* Header */
+    println("[ loopsToRecursion ]" + "="*50 + "]\n");
+
+    /* Create a list */
+    val test_list : List[ Int ] = List( 2, 3, 4, 6, 8, 11 );
+
+    /* Check for odd numbers */
+    val check_1 : Boolean = hasOddNumber( test_list );
+    val check_2 : Boolean = hasOddNumber_recursion( test_list, 0 );
+    println( check_1, check_2 );
+
+    /* Create a string */
+    val test_string : String = "Z thiz Iz A TeZt z";
+    val loop_z = countZ( test_string );
+    val recursive_z = countZ_recursive( test_string, 0, 0 );
+    println( s"Results of countZ and countZ_recursive: ${ loop_z } ${ recursive_z }" );
+
+    /* Footer */
+    println("\n" + "-"*65 + "\n");
+  }
+/* --------------------------------------------------------------- */
+
+  /* Determine if a list has an odd number using while loop */
+  def hasOddNumber( list : List[ Int ] ) : Boolean = {
+    val n = list.length;
+    var j = 0;
+    while ( j < n ) {
+      if ( list( j ) % 2 == 1 ) {
+        return true;
+      }
+      j += 1;
+    }
+    return false;
+  }
+
+  /* Determine if a list has an odd number using recursion */
+  def hasOddNumber_recursion( list : List[ Int ], j : Int ) : Boolean = {
+    if ( j >= list.length ) {
+      return false;
+    }
+    else if ( list( j ) % 2 == 1 ) {
+      return true;
+    }
+    else {
+      hasOddNumber_recursion( list, j + 1 );
+    }
+  }
+
+  /* Number of occurrences of 'Z' in a string */
+  def countZ( s : String ) : Int = {
+    var count = 0;
+    for ( i <- 0.until( s.length ) ) {
+      if ( s( i ) == 'Z' || s( i ) == 'z' ) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  /* Number of occurrences of 'Z' in a string (recursive) */
+  def countZ_recursive( s : String, count : Int, i : Int ) : Int = {
+    if ( i >= s.length ) {
+      return count;
+    }
+    else if ( s( i ) == 'Z' || s( i ) == 'z' ) {
+        countZ_recursive( s, count + 1, i + 1 );
+    }
+    else {
+      countZ_recursive( s, count, i + 1 );
+    }
+  }
+  /* --------------------------------------------------------------- */
+}
