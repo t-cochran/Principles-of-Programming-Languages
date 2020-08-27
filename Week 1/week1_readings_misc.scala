@@ -3,13 +3,11 @@
  * that I encountered.
  */
 
- /* Check out the underline wildcard */
-object underlineThing {
-
+object misc {
 	def main( args : Array[ String ] ) : Unit = {
 
 		/* Header */
-		println("[ underlineThing ]" + "="*50 + "]\n");
+		println("[ Miscellaneous ]" + "="*50 + "]\n");
 
 		/* Switch statement */
 		println( s"switchTest( 1 ): ${ switchTest( 1 ) }" );
@@ -68,12 +66,21 @@ object underlineThing {
 		val smallest : Int = test_list.reduceLeft( _ min _ );
 		val largest : Int = test_list.reduceLeft( _ max _ );
 
-
 		println( s"sum_1: $sum_1\n" +
 						 s"sum_2: $sum_2 \n" +
 						 s"smallest: $smallest\n" +
-						 s"largest: $largest\n" );
-		
+             s"largest: $largest\n" );
+    
+    /**
+		 * Using foldLeft
+		 */
+    val sum_start_with_3 : Int = test_list.foldLeft( 3 )( _ + _ );
+    val mult_start_with_3 : Int = test_list.foldLeft( 3 )( _ * _ );
+    val sum_anon : Int = test_list.foldLeft( 3 )( ( a, b ) => { a + b } );
+    println( s"sum_start_with_3: $sum_start_with_3\n" +
+             s"mult_start_with_3: $mult_start_with_3\n" +
+             s"sum_anon: $sum_anon\n" );
+
 		/* Footer */
 		println("\n" + "-"*65 + "\n");
 	}
@@ -90,8 +97,8 @@ object underlineThing {
 			case 2 => "two"
 			case _ => "other than one and two"
 		}
-	}
-
+  }
+  
 	/**
 	* Case class
 	*/
@@ -100,6 +107,5 @@ object underlineThing {
 		case class test_2( x : String, y : Float ) extends Something;
 		case class test_3( x : String ) extends Something;
 	}
-
 }
 /* --------------------------------------------------------------- */
