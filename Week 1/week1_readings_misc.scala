@@ -15,8 +15,8 @@ object misc {
 		println( s"switchTest( 7 ): ${ switchTest( 7 ) }" );
 
 		/**
-		 * Assign anon functions with parameters and without
-		 */
+		* Assign anon functions with parameters and without
+		*/
 		val anon_func_1 = () => { 3 }
 		println( anon_func_1() );
 
@@ -30,8 +30,8 @@ object misc {
 		anon_func_4();
 
 		/**
-			* Assign anon functions with type declaration and without
-			*/
+        * Assign anon functions with type declaration and without
+        */
 		val anon_func_5 : ( String, String ) => String = ( left, right ) => {
 			left + ", " + right
 		}
@@ -53,13 +53,13 @@ object misc {
 		print( triple_quotes );
 
 		/**
-		 * value :: value puts the right value as the new head of the list.
-		 */
+		* value :: value puts the right value as the new head of the list.
+		*/
 		println( s"${ List(1, 2, 3) == 1 :: 2 :: 3 :: Nil }" );  // True!
 
 		/**
-		 * Using reduceLeft ( implemented with tail recursion )
-		 */
+		* Using reduceLeft ( implemented with tail recursion )
+		*/
 		val test_list : List[ Int ] = List( 1, 2, 3, 4 );		
 		val sum_1 : Int = test_list.reduceLeft( _ + _ );
 		val sum_2 : Int = test_list.reduceLeft( (a, b) => a + b );
@@ -72,8 +72,8 @@ object misc {
              s"largest: $largest\n" );
     
     /**
-		 * Using foldLeft
-		 */
+	* Using foldLeft
+	*/
     val sum_start_with_3 : Int = test_list.foldLeft( 3 )( _ + _ );
     val mult_start_with_3 : Int = test_list.foldLeft( 3 )( _ * _ );
     val sum_anon : Int = test_list.foldLeft( 3 )( ( a, b ) => { a + b } );
@@ -87,10 +87,10 @@ object misc {
 	/* --------------------------------------------------------------- */
 
 	/**
-	 * Scala switch statement 
-	 * 
-	 * Pattern Matching: Check a value against a pattern. 
-	 */
+	* Scala switch statement 
+	* 
+	* Pattern Matching: Check a value against a pattern. 
+	*/
 	def switchTest( x : Int ) : String = {
 		x match {
 			case 1 => "one"
