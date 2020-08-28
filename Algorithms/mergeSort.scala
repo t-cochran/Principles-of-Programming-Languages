@@ -3,7 +3,6 @@
  * 
  * Merge sort
  */
-import scala.collection.mutable.ListBuffer
 import scala.annotation.tailrec
 
 object mergeSort {
@@ -15,7 +14,6 @@ object mergeSort {
 
     val unsorted : List[ Int ] = List( 4, 6, 2, 11, 9, 10, 34 );
     val sorted = mergesort( unsorted );
-    printList( unsorted );
     printList( sorted );
 
   }
