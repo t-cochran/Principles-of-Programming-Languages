@@ -3,11 +3,11 @@
 #
 build:
 	@scalac week2_recursion.scala -deprecation
-	@scalac week2_inductive.scala -deprecation
+	#@scalac week2_inductive.scala -deprecation
 
 run:
-	@scala recursiveFunctions
-	@scala inductiveStructs
+	@scala recursivePractice
+	#@scala inductiveStructs
 
 clean:
 	rm *.class
