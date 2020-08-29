@@ -1,0 +1,13 @@
+#
+#  Makefile for Week 12
+#
+build:
+	@scalac week2_recursion.scala -deprecation
+	@scalac week2_inductive.scala -deprecation
+
+run:
+	@scala recursiveFunctions
+	@scala inductiveStructs
+
+clean:
+	rm *.class
