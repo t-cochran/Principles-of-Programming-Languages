@@ -9,23 +9,11 @@ object recursivePractice {
 
     def main( args : Array[ String ] ) : Unit = {
 
-      // func_2( 10 );
-
-      val test_factorial = factorial( 4 );
-      // println( test_factorial );
-
-      var check = fibonacci_rec_2( 5 );
-      println( s"$check" );
-      check = fibonacci_rec_2( 6 );
-      println( s"$check" );
-      check = fibonacci_rec_2( 7 );
-      println( s"$check" );
-      check = fibonacci_rec_2( 8 );
-      println( s"$check" );
-      check = fibonacci_rec_2( 9 );
+      var check = fibonacci_rec_2( 12 );
       println( s"$check" );
     
     }
+    /* --------------------------------------------------------------- */
 
     /** Tail recursive
      * 
@@ -51,6 +39,7 @@ object recursivePractice {
       return fibonacci_rec_2( n - 1, acc1 + acc2, acc1 );
 
     }
+    /* --------------------------------------------------------------- */
 
     /**
      * A function that computes the nth fibonacci
@@ -74,9 +63,10 @@ object recursivePractice {
         nth -= 1;
       }
       
-      println( s"result: $fn");
       return fn;
+  
     }
+    /* --------------------------------------------------------------- */
 
     /**
      * Checks if x is a power of two.
@@ -107,6 +97,7 @@ object recursivePractice {
       }
 
     }
+    /* --------------------------------------------------------------- */
 
     /** Tail recursive
      * 
@@ -127,6 +118,7 @@ object recursivePractice {
 
       }
     }
+    /* --------------------------------------------------------------- */
 
     /** Not tail recursive
      * 
@@ -149,6 +141,7 @@ object recursivePractice {
       }
 
     }
+    /* --------------------------------------------------------------- */
 
     /** Not tail recursive
      * 
@@ -172,6 +165,7 @@ object recursivePractice {
       }
 
     }
+    /* --------------------------------------------------------------- */
 
     /**
      * A scala function using a while loop. 
@@ -191,6 +185,7 @@ object recursivePractice {
       return 0;
 
     }
+    /* --------------------------------------------------------------- */
 
     /** Tail recursive
      * 
@@ -209,6 +204,5 @@ object recursivePractice {
       return func_2( x - 1 );
 
     }
-
-      
+    /* --------------------------------------------------------------- */ 
 }
