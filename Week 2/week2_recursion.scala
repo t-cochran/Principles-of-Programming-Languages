@@ -10,7 +10,7 @@ object recursivePractice {
     def main( args : Array[ String ] ) : Unit = {
 
       var check = fibonacci_rec_2( 12 );
-      println( s"$check" );
+      // println( s"$check" );
     
     }
     /* --------------------------------------------------------------- */
