@@ -5,7 +5,8 @@ build:
 	@scalac week3_iStructs_ops.scala -deprecation
 
 run:
-	@scala structOperations
+	@scala memberFunctions
+	@scala patternMatching
 
 clean:
 	rm *.class
