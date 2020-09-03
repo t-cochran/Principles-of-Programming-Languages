@@ -18,8 +18,9 @@
   */
 sealed trait NatNum {
 
-  def minusOne() : NatNum;
-  def addNatNums( num : NatNum) : NatNum;
+  def minusOne() : NatNum;                    // n1 - 1
+  def addNatNums( num : NatNum ) : NatNum;    // n1 + n2
+  def multNatNums( num : NatNum ) : NatNum;   // n1 x n2
 
 }
 
@@ -41,6 +42,12 @@ case class Z() extends NatNum {  // Number -> Z
     return num;  // zero + num = num
 
   }
+
+  def multNatNums( num : NatNum ) : NatNum = {
+    
+    return Z();  // zero * num = zero
+
+  }
 }
 
 /**
@@ -59,6 +66,13 @@ case class Succ( n : NatNum ) extends NatNum {  // Number -> Succ( Number )
   def addNatNums( num : NatNum ) : NatNum = {
 
     return this.n.addNatNums( Succ( num ) );
+
+  }
+
+  def multNatNums( num : NatNum ) : NatNum = {
+
+    val s1 = this.n.multNatNums( num );
+    return s1.addNatNums( num );
 
   }
 
@@ -110,7 +124,9 @@ object memberFunctions {
     val seven : NatNum = four.addNatNums( three );
     println( seven );
 
-    println( four.n );
+    /* Test the 'multNatNums()' operation */
+    val six : NatNum = three.multNatNums( two );
+    println( s"Six: $six" );
 
   }
 }
@@ -148,6 +164,24 @@ object patternMatching {
     }
   }
 
+  /* Multiply natural numbers */
+  def multiplyNatNums( n1 : NatNum, n2 : NatNum ) : NatNum = {
+
+    ( n1 ) match{
+
+      case Z() => return Z();
+
+      case Succ( n1 ) => {
+
+        val s1 = multiplyNatNums( n1, n2 ); 
+        return addNatNums( n2, s1 );              
+
+      }
+
+    }
+
+  }
+
   def main( args: Array[ String ] ) : Unit = {
 
     /* Test minusOne() operation implemented with pattern matching */
@@ -180,6 +214,10 @@ object patternMatching {
     assert( one == one_from_zero)
     println( seven );
 
+    /* Multiply two natural numbers */
+    val six_from_three : NatNum = multiplyNatNums( three, two );
+    assert( addNatNums( four, two ) == six_from_three );
+    println( six_from_three );
   }
 
 }
