@@ -15,8 +15,8 @@
 sealed trait NatNum;
 
 /* Inductive definition for the set of natural numbers */
-case class Z() extends NatNum;                  // Number -> Z i.e. 0
-case class Succ( n : NatNum ) extends NatNum;   // Number -> Succ( Number ) i.e. n + 1
+case class Z() extends NatNum;
+case class Succ( n : NatNum ) extends NatNum;
 /* --------------------------------------------------------------- */
 
 /**
@@ -31,6 +31,51 @@ sealed trait NumList;
 /* Inductive definition for List of Numbers */
 case object Nil extends NumList;
 case class Cons( num : Int, list : NumList ) extends NumList;
+/* --------------------------------------------------------------- */
+
+/**
+  * Grammar for a binary tree of numbers:
+  * 
+  * Num = 0 | 1 | 2 | 3 . . .
+  * NumTree -> Leaf | Node( Num, NumTree, NumTree ) 
+  */
+sealed trait NumTree;
+
+/* Inductive definition for a binary tree of numbers */
+case object Leaf extends NumTree;
+case class Node( n : Int, left : NumTree, right : NumTree ) extends NumTree;
+/* --------------------------------------------------------------- */
+
+/**
+  * Grammar for arithmetic expressions: 
+  * 
+  * Double -> -2 | -1 | 0 | 1 | 2 . . .
+  * Identifier -> [a-zA-Z][a-zA-Z0-9_]
+  * Expr -> Const( Double )
+  *     |   Ident( Identifier )
+  *     |   Plus( Expr, Expr )
+  *     |   Minus( Expr, Expr )
+  *     |   Mult( Expr, Expr )
+  *     |   Div( Expr, Expr )
+  *     |   Log( Expr )
+  *     |   Exp( Expr )
+  *     |   Sine( Expr )
+  *     |   Cosine( Expr )
+  */
+sealed trait Expr;
+
+/* Inductive definition for arithmetic expressions */
+case class Const( f: Double ) extends Expr 
+case class Ident( s: String ) extends Expr
+case class Plus(  eList: List[Expr] ) extends Expr
+case class Minus( e1: Expr, eList: List[Expr] ) extends Expr
+case class Mult( eList: List[Expr] ) extends Expr
+case class Div( e1: Expr, e2: Expr ) extends Expr
+case class Log( e: Expr ) extends Expr
+case class Exp( e: Expr ) extends Expr
+case class Sine( e: Expr ) extends Expr
+case class Cosine( e: Expr ) extends Expr
+
 /* --------------------------------------------------------------- */
 
 
@@ -265,7 +310,134 @@ object patternMatching {
     return reverseList_2( list, Nil );
 
   }
+  /* --------------------------------------------------------------- */
 
+  /* Check if a BST follows the BST property */
+  def isBST_helper( tree : NumTree, left : Int, right : Int ) : Boolean = {
+
+    ( tree ) match {
+
+      case Leaf => return true;  // A single leaf does follow BST property
+
+      case Node( self, lChild, rChild ) if (left <= self && self <= right) => {
+
+        return isBST_helper( lChild, left, self ) && 
+               isBST_helper( rChild, self, right );
+
+      }
+
+      case _ => false;
+
+    }
+  }
+
+  def isBST( tree : NumTree ) : Boolean = {
+
+    return isBST_helper( tree, Int.MinValue, Int.MaxValue );
+
+  }
+  /* --------------------------------------------------------------- */
+
+  /* Return the set of variables (as strings) used in an expression */
+  def collectAllVariables( expression : Expr ): Set[ String ] = {
+
+    /* Use foldLeft to collect variables from expressions in an expression list */
+    def helperFunction( expList: List[ Expr ], startValue: Set[ String ] ): Set[ String ] = {
+
+      expList.foldLeft( startValue ) {  // Pass each expression in expList
+
+        case ( setSoFar: Set[ String ], newExpr : Expr ) => { 
+
+          val v = collectAllVariables( newExpr );
+          setSoFar union v;
+        
+        }
+      }
+    }
+    
+    /* Match the expression found */
+    ( expression ) match {
+
+        /* Simple cases */
+        case Const( f ) => Set()    // Return an empty set
+        case Ident( s ) => Set( s ) // Return a set with identifier string
+        
+        /* Call the helper function if an expression contains a list of expressions */
+        case Plus( expList ) => helperFunction( expList, Set() )
+        case Mult( expList ) => helperFunction( expList, Set() )
+        case Minus(e1, expList) => {
+
+            val e1Set = collectAllVariables(e1)
+            helperFunction(expList, e1Set) 
+
+        }
+
+        /* Recurse through sub-expressions and collect variable strings */
+        case Div( e1, e2 ) => {
+
+            ( collectAllVariables( e1 ) ) union ( collectAllVariables( e2 ) )
+
+        }
+        case Log( e1 ) => collectAllVariables( e1 )
+        case Sine( e1 ) => collectAllVariables( e1 )
+        case Cosine( e1 ) => collectAllVariables( e1 )
+        case Exp( e1 ) => collectAllVariables( e1 )
+
+        /* Catch all case */
+        case _ => { 
+
+          assert(false); return Set()  
+        
+        }
+    }
+  }
+  /* --------------------------------------------------------------- */
+
+  /**
+   * Eval function
+   * 
+   * Take an environment that maps variable identity strings to values.
+   * Use the environment mapping to evaluate arithmetic expressions.
+   */
+  def evalExpression( expr : Expr, env : Map[ String, Double ] ) : Double = {
+
+    /* Use pattern matching to evaluate each type of arithmetic expression */
+    ( expr ) match {
+
+      case Const( num ) => return num;  // Simply return constants
+
+      case Ident( str ) => {  // Return the number mapped to the identity
+        if ( env.contains( str ) ) {
+          return env( str );
+        }
+        else {
+          throw new IllegalArgumentException( s"No mapping for $str" );
+        }
+      }
+
+      /* Expression contains a list of sub-expressions */
+      case Plus( exprList ) => {  
+        return ( exprList map { evalExpression( _, env ) } ).sum
+      }
+      case Minus( exp, exprList ) => {
+        return ( evalExpression( exp, env ) ) - 
+               ( ( exprList map { evalExpression( _, env ) } ).sum );
+      }
+      case Mult( exprList ) => {
+        return ( exprList map { evalExpression( _, env ) } ).product
+      }
+
+      /* Evaluate single expressions using the math library */
+      case Div( exp1, exp2 ) => return ( evalExpression( exp1, env ) / 
+                                         evalExpression( exp2, env ) );
+      case Log( exp ) => return math.log( evalExpression( exp, env ) );
+      case Exp( exp ) => return math.exp( evalExpression( exp, env ) );
+      case Sine( exp ) => return math.sin( evalExpression( exp, env ) );
+      case Cosine( exp ) => return math.cos( evalExpression( exp, env ) );
+    }
+  }
+  /* --------------------------------------------------------------- */
+  
 
   /**
    * Program entry point
@@ -338,6 +510,54 @@ object patternMatching {
     val list_5 : NumList = Cons( 1, Cons( 2, Cons( 3, Nil ) ) );
     println( reverse( list_5 ) );
     /* --------------------------------------------------------------- */
+
+    /* Check if binary trees have the BST property */
+    val tree1 = Node(1, 
+                  Node(2, 
+                    Node(3, Leaf, Leaf), 
+                    Node(2, Leaf, Leaf)
+                  ), 
+                  Node(4, Leaf, Leaf)
+                )
+    val tree2 = Node(6, 
+                  Node(2, 
+                    Node(1, Leaf, Leaf), 
+                    Leaf
+                  ), 
+                  Node(10, 
+                    Node(7, Leaf, Leaf), 
+                    Leaf
+                  )
+                )
+    println( isBST( tree1 ) );
+    println( isBST( tree2 ) );
+    /* --------------------------------------------------------------- */
+
+    /** 
+     * Create an expression: 
+     *  
+     * cos(x) + sin(y) + e^{x - y - z}
+     * 
+     * Get all variables used in the expression.
+     */
+    val x = Ident( "x" );
+    val y = Ident( "y" );
+    val z = Ident( "z" );
+
+    val expr1 = Plus(List(Cosine(x), Sine(y), Exp(Minus(x, List(y,z)))))
+    val s1 = collectAllVariables( expr1 );
+    println( s1 );
+    /* --------------------------------------------------------------- */
+
+    /**
+     * Evaluate expressions using a given environment
+     */
+    val env : Map[ String, Double ] = Map( "x" -> 2.0, "y" -> 1.5, "z" -> 2.8 );
+
+    /* expr1 =  cos(x) + sin(y) + e^{ x - y - z } */
+    val eval = evalExpression( expr1, env );
+    println( eval );
+
 
   }
 }
