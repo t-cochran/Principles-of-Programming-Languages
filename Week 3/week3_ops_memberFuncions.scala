@@ -27,7 +27,7 @@ sealed trait NatNum {
 /**
  * Inductive definition: Set of natural numbers
  * 
- * Case: List of numbers where n = 0
+ * Case: Set of natural numbers where n = 0
  */
 case class Z() extends NatNum {  // Number -> Z
 
@@ -54,7 +54,7 @@ case class Z() extends NatNum {  // Number -> Z
 /**
  * Inductive definition: Set of natural numbers
  * 
- * List of numbers where n = n + 1
+ * Set of natural numbers where n = n + 1
  */
 case class Succ( n : NatNum ) extends NatNum {  // Number -> Succ( Number )
 
@@ -79,6 +79,53 @@ case class Succ( n : NatNum ) extends NatNum {  // Number -> Succ( Number )
 
 }
 /* --------------------------------------------------------------- */
+
+/**
+  * Grammar for a list of numbers:
+  * 
+  * Num = 0 | 1 | 2 | 3 . . .
+  * NumList -> Nil | Const( Num, NumList )
+  * 
+  * List the set of operations inherited from the class 'NumList_2'
+  */
+sealed trait NumList_2 {
+
+    def listLength() : Int;
+
+}
+/* --------------------------------------------------------------- */
+
+/**
+ * Inductive definition: List of Numbers
+ * 
+ * List of numbers where List = Nil (empty)
+ */
+case object Nil_2 extends NumList_2 {
+
+    def listLength() : Int = {
+
+        return 0;
+
+    }
+}
+/* --------------------------------------------------------------- */
+
+/**
+ * Inductive definition: List of Numbers
+ * 
+ * List of numbers where List != Nil
+ */
+case class Cons_2( num : Int, list : NumList_2 ) extends NumList_2 {
+
+    def listLength(): Int = {
+
+        return 1 + list.listLength();
+
+    }
+
+}
+/* --------------------------------------------------------------- */
+
 
 /**
  * Operations on inductive definitions using pattern matching
@@ -139,6 +186,11 @@ object memberFunctions {
     /* Test the 'multNatNums()' operation */
     val six : NatNum = three.multNatNums( two );
     println( s"Six: $six" );
+    /* --------------------------------------------------------------- */
+
+    /* Get the length of a list of numbers */
+    val list_2 : NumList_2 = Cons_2( 3, Cons_2( 2, Cons_2( 1, Nil_2 ) ) );
+    assert( list_2.listLength() == 3 );
     /* --------------------------------------------------------------- */
 
   }
