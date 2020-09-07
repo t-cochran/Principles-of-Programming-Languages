@@ -67,9 +67,9 @@ object misc {
     val largest : Int = test_list.reduceLeft( _ max _ );
 
     println( s"sum_1: $sum_1\n" +
-            s"sum_2: $sum_2 \n" +
-        s"smallest: $smallest\n" +
-            s"largest: $largest\n" );
+             s"sum_2: $sum_2 \n" +
+             s"smallest: $smallest\n" +
+             s"largest: $largest\n" );
         
     /**
      * Using foldLeft

@@ -70,7 +70,7 @@ sealed trait Expr;
   *         |   Not( CondExpr )
   * 
   * Double -> -2 | -1 | 0 | 1 | 2 . . .
-  * Identifier -> [a-zA-Z][a-zA-Z0-9_]
+  * Identifier -> [a-zA-Z][a-zA-Z0-9_]*
   * Expr -> Const( Double )
   *     |   Ident( Identifier )
   *     |   Plus( Expr, Expr )

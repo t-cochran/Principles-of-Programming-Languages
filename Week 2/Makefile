@@ -1,5 +1,5 @@
 #
-#  Makefile for Week 12
+#  Makefile for Week 2
 #
 build:
 	@scalac week2_recursion.scala -deprecation
