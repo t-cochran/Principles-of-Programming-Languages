@@ -46,6 +46,8 @@ object lettuceScratch {
    * Second call: calls the returned function with 'y' passed
    */
   def curriedFunction( x : Int )( y : Int ) = x + y;
+  /* --------------------------------------------------------------- */
+
 
   /**
    * Create a curried function:
@@ -67,7 +69,143 @@ object lettuceScratch {
    *      function passed gets parameter ( x * y ) from the first call.
    */
   def mult( x : Int, y : Int )( f : Int => Int ) = { f( x * y ) };
+  /* --------------------------------------------------------------- */
+
+
+  /**
+   * Catch errors while parsing ( static type checking ) our Lettuce grammar
+   * 
+   * Create an 'undeclared identifier' error if a variable is not declared
+   * before use. E.g. Let x = 10 in ...
+   * 
+   * e: expression
+   * s: set of in-scope declared expressions
+   */
+  def declared( e : Expr, s : Set[ String ] ) : Boolean = {
+
+    /* Pattern match the expression 'e' for a given operation */
+    ( e ) match {
+
+      /**
+       * Base case:
+       * 
+       * Const: Constants require no declaration before use. They cannot
+       *        be an undeclared ientifier by default. So, return true.
+       * 
+       * Booleans: Booleans, like constants, require no declaration before
+       *           use. They cannot be undeclared, so return true.
+       */
+      case Const( _ ) => true;
+      case True => true;
+      case False => true;
+
+      /**
+       * Filter: In any given op, what you're left with are nested constants,
+       *         booleans, or identifiers. Since constants and booleans 
+       *         don't need to be declared, we need only check if identifiers
+       *         have been declared prior to use.
+       * 
+       * How to check of an Ident( x ) has been declared before use:
+       *    
+       *                  x ∈ s
+       *        ----------------------------
+       *          declared( Ident( x ), s )
+       * 
+       * In other words:
+       *    If identifier 'x' exists in the set of in-scope declared expressions,
+       *    then Ident( x ) has been declared prior ot use.
+       */
+      case Ident( x ) => {
+        if ( s contains x ) { true }
+        else { println( s"Error: Undeclared identifier $x" ); false }
+      }
+
+      /**
+       * Pattern match a given operation (binary or unary), then use recursion
+       * to strip off nested operations until we reach either the base case
+       * (constants or booleans == true) or an Identifier, which we check.
+       */
+
+      /**
+       * Binary operations
+       * 
+       *   declared( e1, s ), declared ( e2, s ), T ∈ { Plus, Minus, Mult .. }
+       *  ---------------------------------------------------------------------
+       *                     declared( T( e1, e2 ), s )
+       */
+      case Plus( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Minus( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Mult( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Div( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Geq( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Eq( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case And( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+      case Or( e1, e2 ) => declared( e1, s ) && declared( e2, s );
+
+      /**
+       * Unary operations
+       * 
+       *   declared( e1, s ), T ∈ { Log, Exp, Sine .. }
+       *  ----------------------------------------------
+       *            declared( T( e1 ), s )
+       */
+      case Log( e ) => declared( e, s ); 
+      case Exp( e ) => declared( e, s ); 
+      case Sine( e ) => declared( e, s ); 
+      case Cosine( e ) => declared( e, s ); 
+      case Not( e ) => declared( e, s ); 
+
+      /* IfThenElse: Recurse through all three expressions */
+      case IfThenElse( e, eIf, eElse ) => {
+        declared( e, s ) && declared( eIf, s ) && declared( eElse, s );
+      }
+
+      /** 
+       * Let: 
+       * 
+       * Recurse through  defining expression, body expression, and
+       * append the symbol to the set of in-scope declared expressions.
+       */
+      case Let( symbolStr, defExpr, bodyExpr ) => {
+        declared( defExpr, s ) && declared( bodyExpr, s + symbolStr )
+      }
+
+      /** 
+       * Function definition and function call:
+       * 
+       * Recurse through function body expressions, the function call and
+       * function arguments. Append function parameter string to the set
+       * of in-scope declared expressions.
+       */
+      case FunDef( paramStr, bodyExpr ) => declared( bodyExpr, s + paramStr );
+      case FunCall( funcCall, funcArgExpr ) => {
+        declared( funcCall, s ) && declared( funcArgExpr, s );
+      }
+
+    }
+
+  }
+  /* --------------------------------------------------------------- */
   
+
+  /**
+   * Helper for 'declared' function:
+   * 
+   * Pass program abstract syntax to 'p', it will pass 'p' to 'declared'
+   * along with an empty set for declared expressions.
+   */
+  def checkProgram( p : Program ) : Boolean = {
+
+    ( p ) match {
+
+      case TopLevel( e ) => declared( e, Set() );
+
+    }
+
+  }
+  /* --------------------------------------------------------------- */
+
+
   def main( args : Array[ String ] ) : Unit = {
 
     /* Test the curried function */
@@ -118,6 +256,41 @@ object lettuceScratch {
                     )
     println( program_2 );
 
+    /**
+     * Test Lettuce Grammar: Concrete to abstract syntax
+     *
+     * let x = y + z in 
+     *  x * y
+     */
+    val program_3 = TopLevel(
+                      Let( 
+                        "x", Plus( Ident( "y" ), Ident( "z" ) ), 
+                        Mult( Ident( "x" ), Ident( "y" ) ) 
+                      )
+                    );
+    println( program_3 );
+
+    /**
+     * Test Lettuce Grammar: Concrete to abstract syntax
+     *
+     * let x = x in 
+     *  x * y
+     */
+    val program_4 = TopLevel(
+                      Let( 
+                        "x", Ident( "x" ), 
+                        Mult( Ident( "x" ), Ident( "y" ) ) 
+                      )
+                    );
+    println( program_4 );
+
+    /**
+     * Test checking whether variables are declared before use
+     */
+    println( s"Checking program_1 declared variables: ${ checkProgram( program_1 ) }" );
+    println( s"Checking program_2 declared variables: ${ checkProgram( program_2 ) }" );
+    println( s"Checking program_3 declared variables: ${ checkProgram( program_3 ) }" );  // Error
+    println( s"Checking program_4 declared variables: ${ checkProgram( program_4 ) }" );  // Error
   }
 
 }
