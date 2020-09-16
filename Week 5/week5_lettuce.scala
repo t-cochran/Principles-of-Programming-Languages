@@ -5,7 +5,7 @@
  */
 
 /**
- * Grammar for Lettuce
+ * Grammar for Lettuce types, expressions, and operations
  */
 sealed trait Program
 sealed trait Expr
