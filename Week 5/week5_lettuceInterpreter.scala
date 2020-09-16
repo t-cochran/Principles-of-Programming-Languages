@@ -5,7 +5,7 @@
  */
 
 /**
- * Grammar for Lettuce types, expressions, and operations
+ * Grammar for Lettuce types and expressions
  */
 sealed trait Program
 sealed trait Expr
@@ -59,7 +59,8 @@ case object ErrorValue extends Value
 
 
 /**
- * A very basic Lettuce eval function  -- no functions yet
+ * Lettuce eval function that takes a Lettuce program written in
+ * abstract syntax, and evaluates the program to return a result
  */
 object lettuceEval {
 
@@ -249,7 +250,6 @@ object lettuceEval {
       case _:FunCall => { 
         throw new IllegalArgumentException( "Function calls not yet handled in this interpreter." )
       }
-
     }
   }
 
@@ -272,8 +272,28 @@ object lettuceEval {
       }
     }
   }
+  /* --------------------------------------------------------------- */
 
   def main( args : Array[ String ] ) : Unit = {
+    /**
+     * Test Lettuce Grammar: Concrete to abstract syntax
+     *
+     * let x = 100 in
+     *  let y = 500 - x * 2 in
+     *    x * y
+     * 
+     * Expected result: 30000
+     */
+    val program_1 = TopLevel(
+                      Let( 
+                        "x", Const( 100 ), 
+                        Let ( 
+                          "y", Minus( Const( 500 ), Mult( Ident( "x" ), Const( 2 ) ) ), 
+                          Mult( Ident( "x" ), Ident( "y" ))
+                        )
+                      )
+                    );
+    println( program_1 );
 
     /**
      * Test Lettuce Grammar: Concrete to abstract syntax
@@ -283,6 +303,8 @@ object lettuceEval {
      *    if (y)
      *    then x
      *    else x - 35
+     * 
+     * Expected result: 25
      */
     val program_2 = TopLevel(
                       Let( 
@@ -299,6 +321,48 @@ object lettuceEval {
                     )
     println( program_2 );
 
+    /**
+     * Test Lettuce Grammar: Concrete to abstract syntax
+     *
+     * let x = 5 in
+     *  let y = 5 in
+     *    let z = x / y in 
+     *      if ( z == 1 )
+     *      then 100
+     *      else -1
+     * Expected result: 100
+     */
+    val program_3 = TopLevel(
+                      Let(
+                        "x", Const( 5 ), 
+                        Let(
+                          "y", Const( 5 ),
+                          Let(
+                            "z", Div( Ident( "x" ), Ident( "y" ) ), 
+                            IfThenElse( 
+                              Eq( Ident( "z" ), Const( 1 ) ), 
+                              Const( 100 ), 
+                              Const( -1 ) )
+                          )
+                        )
+                      )
+                    )
+    println( program_3 );
+
+    /**
+     * Evaluate program_1, program_2, and program_3 using the eval function
+     */
+    val ret_1 : Value = evalProgram( program_1 );
+    val ret_2 : Value = evalProgram( program_2 );
+    val ret_3 : Value = evalProgram( program_3 );
+
+    println( 
+      s"""
+      program_1 evaluated: ${ valConvert( ret_1 ) } 
+      program_2 evaluated: ${ valConvert( ret_2 ) }
+      program_3 evaluated: ${ valConvert( ret_3 ) }
+      """ 
+    );
   }
 
 }
