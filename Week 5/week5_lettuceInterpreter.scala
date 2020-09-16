@@ -98,7 +98,8 @@ object lettuceEval {
   def eval( e : Expr, env : Map[ String, Value ] ) : Value = {
 
     /**
-     * Method for binary operations
+     * Methods that get values from either a binary, unary or boolean operation,
+     * then perform a given function 'f' on those values, and return the result.
      * 
      * Curried -- pass in expressions 1 and 2 and recursively evaluate them
      * to their NumValue, then convert the NumValue to Double's.
@@ -111,11 +112,16 @@ object lettuceEval {
       val funcResult : Double = f( val_1, val_2 );         // Pass expressions to 'f'
       NumValue( funcResult );
     }
-    def binaryBoolOp( e1 : Expr, e2 : Expr )( f : ( Double, Double ) => Boolean ) = {
+    def boolOp( e1 : Expr, e2 : Expr )( f : ( Double, Double ) => Boolean ) = {
       val val_1 : Double = valConvert( eval( e1, env ) );  // Eval expr 1
       val val_2 : Double = valConvert( eval( e2, env ) );  // Eval expr 2
       val funcResult : Boolean = f( val_1, val_2 );        // Pass expressions to 'f'
       BoolValue( funcResult );                        
+    }
+    def unaryOp( e1 : Expr )( f : ( Double ) => Double ) ={
+      val val_1 : Double = valConvert( eval( e1, env ) );
+      val funcResult : Double = f( val_1 );
+      NumValue( funcResult );
     }
 
     /**
@@ -126,10 +132,12 @@ object lettuceEval {
       /**
        * Base cases:
        * 
-       * Constants do not require mappings in env; they are simply returned.
+       * Constants and booleans do not require mappings in env; they are returned.
        * Identifiers return the mapped value from the environment.
        */
       case Const( d ) => NumValue( d );
+      case True => BoolValue( true );
+      case False => BoolValue( false );
       case Ident( d ) => {
         if ( env contains d ) {
           env( d );
@@ -140,17 +148,16 @@ object lettuceEval {
       }
 
       /**
-       * Evaluate binary operations
+       * Evaluate binary expressions
        * 
-       * Use the method 'binaryOp'. This will evaluate the NumValue of 
-       * e1 and e2 via recursion, then call the anonymous function on 
-       * the values of each expression.
+       * Use the method 'binaryOp' or 'boolOp' which evaluate e1 and e2 via recursion, 
+       * then call the anonymous function on the values of each expression.
        */
       case Plus( e1, e2 ) => binaryNumOp( e1, e2 ) ( _ + _ )
       case Minus( e1, e2 ) => binaryNumOp( e1, e2 ) ( _ - _ )
       case Mult( e1, e2 ) => binaryNumOp( e1, e2 ) ( _ * _ )
-      case Geq( e1, e2 ) => binaryBoolOp( e1, e2 ) ( _ >= _ )
-      case Eq( e1, e2 ) => binaryBoolOp( e1, e2 ) ( _ == _ )
+      case Geq( e1, e2 ) => boolOp( e1, e2 ) ( _ >= _ )
+      case Eq( e1, e2 ) => boolOp( e1, e2 ) ( _ == _ )
       case Div( e1, e2 ) => binaryNumOp( e1, e2 ) {
         case ( _, 0.0 ) => throw new IllegalArgumentException( s"Error: div by zero" );
         case ( num, denom ) => num / denom;
@@ -166,6 +173,7 @@ object lettuceEval {
               case _ => throw new IllegalArgumentException( s"Error: And() expr not boolean" );
             }
           }
+          case _ => throw new IllegalArgumentException( s"Error: And() expr not boolean" );
         }
       }
       case Or( e1, e2 ) => {
@@ -179,23 +187,117 @@ object lettuceEval {
               case _ => throw new IllegalArgumentException( s"Error: Or() expr not boolean" );
             }
           }
+          case _ => throw new IllegalArgumentException( s"Error: Or() expr not boolean" );
         }
       }
 
+      /**
+       * Evaluate unary expressions
+       * 
+       * Use the method 'unaryOp'. This will evaluate the NumValue of 
+       * e1 and e2 via recursion, then call the anonymous function on 
+       * the values of each expression.
+       */
+      case Log( e ) => unaryOp( e ) {
+        case v if v > 0.0 => math.log( v )
+        case v => throw new IllegalArgumentException( 
+          s"Log of a negative number ${ e } evaluates to ${ v }!"
+        )
+      }
+      case Exp( e ) => unaryOp( e ) ( math.exp )
+      case Sine( e ) => unaryOp( e ) ( math.sin )
+      case Cosine( e ) => unaryOp( e ) ( math.cos )
+      case Not( e ) => {
+        val val_1 : Value = eval( e, env )
+        ( val_1 ) match {
+          case BoolValue( b ) => BoolValue( !b )
+          case _ => throw new IllegalArgumentException( 
+            s"Not of a non-boolean expr: ${ e } which evaluated to ${ val_1 }" 
+          )
+        }
+      }
+      
+      /**
+       * Evaluate If-Then-Else expressions
+       */
+      case IfThenElse( e1, e2, e3 ) => {
+        val val_1 : Value = eval( e1, env )
+        ( val_1 ) match {
+          case BoolValue( true ) => eval( e2, env )
+          case BoolValue( false ) => eval( e3, env )
+          case _ => throw new IllegalArgumentException(
+            s"If-then-else condition expr: ${ e1 } is non-boolean -- evaluates to ${ val_1 }"
+          )
+        }
+      }
 
+      /**
+       * Evaluate Let expressions
+       */
+      case Let( x, e1, e2 ) => {
+        val val_1 = eval( e1, env )      // eval e1
+        val env_2 = env + ( x -> val_1 ) // create a new extended env
+        eval( e2, env_2 )                // eval e2 under that.
+      }
+  
+      /**
+       * Omit function definitions and function calls
+       */
+      case _:FunDef => {
+        throw new IllegalArgumentException( "Function definitions not yet handled in this interpreter." )
+      }
+      case _:FunCall => { 
+        throw new IllegalArgumentException( "Function calls not yet handled in this interpreter." )
+      }
 
     }
-
-
-
-
   }
 
+  /**
+   * Pass expressions from the TopLevel program to the eval function with 
+   * an empty environment mapping. 
+   */
+  def evalProgram( p : Program ) = {
+    val m : Map[ String, Value ] = Map[ String, Value ]();
+    ( p ) match {
+      case TopLevel( e ) => {
+        try {
+          eval( e, m );
+        } catch {
+          case e: IllegalArgumentException => {
+            println( s"Error: $e" );
+            ErrorValue
+          }
+        }
+      }
+    }
+  }
 
   def main( args : Array[ String ] ) : Unit = {
 
-
-    println( "Sanity check" );
+    /**
+     * Test Lettuce Grammar: Concrete to abstract syntax
+     *
+     * let x = 10 + 15 in
+     *  let y = x >= 25 in
+     *    if (y)
+     *    then x
+     *    else x - 35
+     */
+    val program_2 = TopLevel(
+                      Let( 
+                        "x", Plus( Const( 10 ), Const( 15 ) ),    // x = 10 + 15
+                        Let( 
+                          "y", Geq( Ident( "x" ), Const( 25 ) ),  // y >= 25
+                          IfThenElse( 
+                            Ident( "y" ),                         // If
+                            Ident( "x" ),                         // then
+                            Minus( Ident( "x" ), Const( 35 ) )    // else
+                          )
+                        )
+                      )
+                    )
+    println( program_2 );
 
   }
 
