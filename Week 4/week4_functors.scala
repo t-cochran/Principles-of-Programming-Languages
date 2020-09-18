@@ -143,6 +143,32 @@ object functors {
     }
 
   }
+
+  /**
+   * A functor that applies some function 'f' to each element of a list:
+   *
+   * This functor uses two functions applied to each element of the input list.
+   * 
+   * ex:
+   *   val classList : List[ Int ] = List( 4, 8, 4, 8, 7, 7, 7 );
+   *     println( s"multiples of 4 divided by 4: ${ 
+   *              filterApplyFunctor( classList, 
+   *                                  (x : Int) => ( x % 4 == 0 ),
+   *                                  (x : Int) => ( x / 4 ) ) }" );  // 1 2 1 2
+   * 
+   * g: filters elements so only the multiples of 4 are appended
+   * f: divide filtered elements by 4
+   */
+  def functor_4[ A, B ]( list : List[ A ], 
+                         g : A => Boolean, 
+                         f : A => B ) : List[ B ] = {
+    list match {
+      case Nil => Nil;
+      case i::j if g( i ) => f( i ) :: functor_4( j, g, f );
+      case _::j => functor_4( j, g, f );
+    }
+
+  }
   /* --------------------------------------------------------------- */
 
 
