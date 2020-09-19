@@ -409,8 +409,8 @@ object lettuceEval {
     val square = Ident( "square" );
     val func_def_sqr = FunDef( "x", Mult( x, x ) );
     val func_call_sqr = FunCall( square, Const( 10 ) );
-    val program_4_again = TopLevel( Let( "square", func_def_sqr, fun_Call_sqr ) );
-
+    val program_4_again = TopLevel( Let( "square", func_def_sqr, func_call_sqr ) );
+    assert( program_4 == program_4_again );
 
     /**
      * Function definition example 2
@@ -432,7 +432,13 @@ object lettuceEval {
                         ) 
                       ) 
                     );
-    
+    /*-- Again but with parts --*/
+    val func_def_y = FunDef( "y", Mult( Plus( Ident( "x" ), Ident( "y" ) ), Ident( "y" ) ) );
+    val func_def_x = FunDef( "x", func_def_y );
+    val func_call_xy = FunCall( FunCall( Ident( "sq1" ), Ident( "x" ) ), Ident( "y" ) );
+    val program_5_again = TopLevel( Let( "x", Const( 10 ), Let( "y", Const( 15 ), Let( "sq1", func_def_x, func_call_xy ) ) ) );
+    assert( program_5, program_5_again );
+
     /**
      * Function definition example 3
      *
