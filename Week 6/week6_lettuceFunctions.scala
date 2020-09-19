@@ -392,5 +392,18 @@ object lettuceEval {
       """ 
     );
   }
+  /* --------------------------------------------------------------- */
 
+  /**
+   * Function definition example 1
+   *
+   * let square = function(x) x * x in
+   *     square( 10 )
+   */
+  val program_4 = TopLevel(
+                    Let( 
+                      "square", 
+                        FunDef( "x", Mult( Ident( "x" ), Ident( "x" ) ) ), 
+                        FunCall( Ident( "square" ), Const( 10 ) ) ) 
+                  );
 }
