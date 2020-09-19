@@ -401,9 +401,34 @@ object lettuceEval {
    *     square( 10 )
    */
   val program_4 = TopLevel(
-                    Let( 
-                      "square", 
-                        FunDef( "x", Mult( Ident( "x" ), Ident( "x" ) ) ), 
-                        FunCall( Ident( "square" ), Const( 10 ) ) ) 
+                    Let( "square", FunDef( "x", Mult( Ident( "x" ), Ident( "x" ) ) ), 
+                          FunCall( Ident( "square" ), Const( 10 ) ) 
+                    ) 
+                  );
+
+  /**
+   * Function definition example 2
+   *
+   * let x = 10 in
+   * let y = 15 in
+   * let sq1 = function (x)
+   *              function (y)
+   *                  x + y * y
+   *           in
+   *      sq1(x)(y)
+   */
+  val program_5 = TopLevel(
+                    Let( "x", Const( 10 ), 
+                      Let( "y", Const( 15 ), 
+                        Let( "sq1", 
+                            FunDef( "x", 
+                              FunDef( "y", 
+                                Mult( Plus( Ident( "x" ), Ident( "y" ) ), Ident( "y" ) ) 
+                              ) 
+                            ),       
+                          FunCall( FunCall( Ident( "sq1" ), Ident( "x" ) ), Ident( "y" ) ) 
+                        ) 
+                      ) 
+                    ) 
                   );
 }
