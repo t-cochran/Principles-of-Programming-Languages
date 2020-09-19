@@ -437,7 +437,7 @@ object lettuceEval {
     val func_def_x = FunDef( "x", func_def_y );
     val func_call_xy = FunCall( FunCall( Ident( "sq1" ), Ident( "x" ) ), Ident( "y" ) );
     val program_5_again = TopLevel( Let( "x", Const( 10 ), Let( "y", Const( 15 ), Let( "sq1", func_def_x, func_call_xy ) ) ) );
-    assert( program_5, program_5_again );
+    assert( program_5 == program_5_again );
 
     /**
      * Function definition example 3
@@ -455,14 +455,25 @@ object lettuceEval {
      */
     val program_6 = TopLevel(
                       Let( "h", FunDef( "z", Log( Ident( "z" ) ) ), 
-                          Let( "g", FunDef( "y", Plus( Div( Ident( "y" ), Const( 2.0 ) ), FunCall( Ident( "h" ), Mult( Ident( "y" ), Const( 1.5 ) ) ) ) ), 
-                            Let( "f", FunDef( "x", Plus( Div( Const( 1.0 ), Ident( "x" ) ), FunCall( Ident( "g" ), Ident( "x" ) ) ) ), 
-                              FunCall( Ident( "f" ), Const( 3.1415 ) ) 
-                            )
-                          ) 
+                        Let( "g", FunDef( "y", Plus( Div( Ident( "y" ), Const( 2.0 ) ), FunCall( Ident( "h" ), Mult( Ident( "y" ), Const( 1.5 ) ) ) ) ), 
+                          Let( "f", FunDef( "x", Plus( Div( Const( 1.0 ), Ident( "x" ) ), FunCall( Ident( "g" ), Ident( "x" ) ) ) ), 
+                            FunCall( Ident( "f" ), Const( 3.1415 ) ) 
+                          )
                         ) 
+                      ) 
                     );
-    
-    
+    /*-- Again but with parts --*/
+    val func_def_z = FunDef( "z", Log( Ident( "z" ) ) );
+    val func_def_y_ = FunDef( "y", Plus( Div( Ident( "y" ), Const( 2.0 ) ), FunCall( Ident( "h" ), Mult( Ident( "y" ), Const( 1.5 ) ) ) ) );
+    val func_def_x_ = FunDef( "x", Plus( Div( Const( 1.0 ), Ident( "x" ) ), FunCall( Ident( "g" ), Ident( "x" ) ) ) );
+    val func_call_f = FunCall( Ident( "f" ), Const( 3.1415 ) );
+    val program_6_again = TopLevel( Let( "h", func_def_z, 
+                                      Let( "g", func_def_y_, 
+                                        Let( "f", func_def_x_, func_call_f ) 
+                                      ) 
+                                    )
+                                  );
+    assert( program_6 == program_6_again );
+
   }
 }
