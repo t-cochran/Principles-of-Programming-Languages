@@ -391,44 +391,72 @@ object lettuceEval {
       program_3 evaluated: ${ valConvert( ret_3 ) }
       """ 
     );
-  }
-  /* --------------------------------------------------------------- */
+    /* --------------------------------------------------------------- */
 
-  /**
-   * Function definition example 1
-   *
-   * let square = function(x) x * x in
-   *     square( 10 )
-   */
-  val program_4 = TopLevel(
-                    Let( "square", FunDef( "x", Mult( Ident( "x" ), Ident( "x" ) ) ), 
-                          FunCall( Ident( "square" ), Const( 10 ) ) 
-                    ) 
-                  );
+    /**
+     * Function definition example 1
+     *
+     * let square = function(x) x * x in
+     *     square( 10 )
+     */
+    val program_4 = TopLevel(
+                      Let( "square", FunDef( "x", Mult( Ident( "x" ), Ident( "x" ) ) ), 
+                            FunCall( Ident( "square" ), Const( 10 ) ) 
+                      ) 
+                    );
+    /*-- Again but with parts --*/
+    val x = Ident( "x" );
+    val square = Ident( "square" );
+    val func_def_sqr = FunDef( "x", Mult( x, x ) );
+    val func_call_sqr = FunCall( square, Const( 10 ) );
+    val program_4_again = TopLevel( Let( "square", func_def_sqr, fun_Call_sqr ) );
 
-  /**
-   * Function definition example 2
-   *
-   * let x = 10 in
-   * let y = 15 in
-   * let sq1 = function (x)
-   *              function (y)
-   *                  x + y * y
-   *           in
-   *      sq1(x)(y)
-   */
-  val program_5 = TopLevel(
-                    Let( "x", Const( 10 ), 
-                      Let( "y", Const( 15 ), 
-                        Let( "sq1", 
-                            FunDef( "x", 
-                              FunDef( "y", 
-                                Mult( Plus( Ident( "x" ), Ident( "y" ) ), Ident( "y" ) ) 
-                              ) 
-                            ),       
-                          FunCall( FunCall( Ident( "sq1" ), Ident( "x" ) ), Ident( "y" ) ) 
+
+    /**
+     * Function definition example 2
+     *
+     * let x = 10 in
+     * let y = 15 in
+     * let sq1 = function (x)
+     *              function (y)
+     *                  x + y * y
+     *           in
+     *      sq1(x)(y)
+     */
+    val program_5 = TopLevel(
+                      Let( "x", Const( 10 ), 
+                        Let( "y", Const( 15 ), 
+                          Let( "sq1", FunDef( "x", FunDef( "y", Mult( Plus( Ident( "x" ), Ident( "y" ) ), Ident( "y" ) ) ) ),       
+                            FunCall( FunCall( Ident( "sq1" ), Ident( "x" ) ), Ident( "y" ) ) 
+                          ) 
                         ) 
                       ) 
-                    ) 
-                  );
+                    );
+    
+    /**
+     * Function definition example 3
+     *
+     * let h = function(z)
+     *        log(z)
+     *    in
+     * let g = function(y)
+     *        y/2.0 + h(y*1.5)
+     *    in
+     * let f = function(x)
+     *        1.0/x + g(x)
+     *    in
+     *        f(3.1415)
+     */
+    val program_6 = TopLevel(
+                      Let( "h", FunDef( "z", Log( Ident( "z" ) ) ), 
+                          Let( "g", FunDef( "y", Plus( Div( Ident( "y" ), Const( 2.0 ) ), FunCall( Ident( "h" ), Mult( Ident( "y" ), Const( 1.5 ) ) ) ) ), 
+                            Let( "f", FunDef( "x", Plus( Div( Const( 1.0 ), Ident( "x" ) ), FunCall( Ident( "g" ), Ident( "x" ) ) ) ), 
+                              FunCall( Ident( "f" ), Const( 3.1415 ) ) 
+                            )
+                          ) 
+                        ) 
+                    );
+    
+    
+  }
 }
