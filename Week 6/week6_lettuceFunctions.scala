@@ -475,5 +475,46 @@ object lettuceEval {
                                   );
     assert( program_6 == program_6_again );
 
+    /**
+     * Error: Recursive function note in scope
+     * 
+     * let f 
+     *       = function(x)    <---------------|
+     *          if ( 0 >= x )                 |
+     *              1                         |-exprA
+     *          else                          |
+     *              ( x - 1 ) * f( x - 1 )  <-|
+     *      in
+     *          f( 10 )         <-- exprB
+     * 
+     * Format: let f = exprA in exprB
+     * 
+     *    'f' is NOT in scope when calling f( x - 1 ) in
+     *     exprA
+     */
+    /* --------------------------------------------------------------- */
+
+    /**
+     * Static vs. dynamic scoping for function calls
+     * 
+     * let x = 10 in 
+     *  let f = function(y) y * x in
+     *    let x = 15 in
+     *      f(10)
+     * 
+     * val x = 10                     <-- x used in Static scoping
+     * val f = ( y : Int ) => y * x
+     * val x = 15                     <-- x used in Dynamic scoping
+     * f( 10 )
+     * 
+     * Recall:
+     * Static scoping : Resolve vars when a function is definition
+     * Dynamic scoping : Resolve vars when a function is called
+     * 
+     */
+    /* --------------------------------------------------------------- */
+    
+
+
   }
 }
