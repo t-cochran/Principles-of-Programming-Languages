@@ -475,24 +475,6 @@ object lettuceEval {
                                   );
     assert( program_6 == program_6_again );
 
-    /**
-     * Error: Recursive function note in scope
-     * 
-     * let f 
-     *       = function(x)    <---------------|
-     *          if ( 0 >= x )                 |
-     *              1                         |-exprA
-     *          else                          |
-     *              ( x - 1 ) * f( x - 1 )  <-|
-     *      in
-     *          f( 10 )         <-- exprB
-     * 
-     * Format: let f = exprA in exprB
-     * 
-     *    'f' is NOT in scope when calling f( x - 1 ) in
-     *     exprA
-     */
-    /* --------------------------------------------------------------- */
 
     /**
      * Static vs. dynamic scoping for function calls
@@ -511,9 +493,40 @@ object lettuceEval {
      * Static scoping : Resolve vars when a function is definition
      * Dynamic scoping : Resolve vars when a function is called
      * 
+     * Error: Recursive function not in scope
+     * 
+     * let f 
+     *       = function(x)    <---------------|
+     *          if ( 0 >= x )                 |
+     *              then 1                    |-exprA
+     *          else                          |
+     *              ( x - 1 ) * f( x - 1 )  <-|
+     *      in
+     *          f( 10 )         <-- exprB
+     * 
+     * Format: let f = exprA in exprB
+     * 
+     *    'f' is NOT in scope when calling f( x - 1 ) in
+     *     exprA
      */
+    val program_7_bad = TopLevel( 
+                          Let( "f", FunDef( "x", 
+                            IfThenElse( 
+                              Geq( Const( 0 ), Ident( "x" ) ), Const( 1 ), 
+                              Mult( Minus( Ident( "x" ), Const( 1 ) ), FunCall( Ident( "f" ), Minus( Ident( "x" ), Const( 1 ) ) ) ) 
+                            ) ),
+                            FunCall( Ident( "f" ), Const( 10 ) ) 
+                          ) 
+                        )
+
     /* --------------------------------------------------------------- */
     
+
+
+
+
+
+
 
 
   }
