@@ -81,7 +81,7 @@ case class FunCall( funCalled: Expr, argExpr: Expr ) extends Expr
  * String -> [a-zA-Z0-9_-]+
  */
 sealed trait Value
-case class Closure( p : String, e : Expr, pi : Map[ String, Value ] );
+case class Closure( p : String, e : Expr, pi : Map[ String, Value ] ) extends Value;
 case class NumValue( d : Double ) extends Value
 case class BoolValue( b : Boolean ) extends Value
 case object ErrorValue extends Value
@@ -296,13 +296,26 @@ object lettuceEval {
       }
   
       /**
-       * Omit function definitions and function calls
+       * Evaluate function definitions
        */
-      case _:FunDef => {
-        throw new IllegalArgumentException( "Function definitions not yet handled in this interpreter." )
+      case FunDef( param, body ) => {
+        Closure( param, body, env );  // Return a closure with its env at define time
       }
-      case _:FunCall => { 
-        throw new IllegalArgumentException( "Function calls not yet handled in this interpreter." )
+      case FunCall( funcIdent, funcArg ) => { 
+        val funcDefEval = eval( funcIdent, env );
+        val funcArgEval = eval( funcArg, env );
+        ( funcDefEval ) match {
+          case Closure( funcParam, funcBody, closedFuncEnv ) => {
+            // Extend the function environment to include the evaluated argument
+            val extendedEnv = closedFuncEnv + ( funcParam -> funcArgEval )
+            // Evaluate the function body under the extended environment that
+            // contains the evaluated function argument
+            eval( funcBody, extendedEnv );
+          }
+          case _ => throw new IllegalArgumentException(
+            s"Function call error: ${ funcIdent } does not eval to a closure"
+          )
+        }
       }
     }
   }
@@ -785,8 +798,6 @@ object lettuceEval {
      *            eval(FuncCall(f-exp, arg-exp), 𝜎) = error
      */
     /* --------------------------------------------------------------- */
-
-
 
   }
 }
