@@ -93,7 +93,7 @@ case object ErrorValue extends Value
  *        | PrintStatistics()
  */
 sealed trait Event;
-case class Keypress( key : Int ) extends Event;
+case class KeyPress( key : Int ) extends Event;
 case class MouseClick( x : Int, y : Int ) extends Event;
 case object PrintStatistics extends Event;
 /* --------------------------------------------------------------- */
@@ -566,5 +566,38 @@ object lettuceEval {
     }
     /* --------------------------------------------------------------- */
 
+    /**
+     * Scala static scoping: callbacks
+     * 
+     *  >> Can define callbacks to handle events 
+     *  >> Use partially applied function to bind extra info into the 
+     *     callback function
+     * 
+     *     Ex: 
+     *     KeyPressEventHandler takes no arguments and returns a function
+     *     that takes an `Event` and performs some `Unit` action.
+     * 
+     *     In this case, 'keyPressedSoFar' is declared before the event
+     *     callback is defined, so it is used to collect keypresses when 
+     *     the callback is called.
+     */
+    def keyPressEventHandler() : ( Event => Unit ) ={
+
+      var keysPressedSoFar : Set[ Int ] = Set(); // Mutable set of keys pressed
+      
+      // Match an 'Event' to an action 'Unit'
+      def keyPressEventCallBack( event : Event ) : Unit = {
+        event match{
+          // Append keypress to the set of keysPressedSoFar
+          case KeyPress(key) => keysPressedSoFar = keysPressedSoFar ++ Set( key )
+          case PrintStatistics => println( "keys pressed so far: " + keysPressedSoFar );
+          case _ => ();
+        }
+      }
+      keyPressEventCallBack;
+    } 
+    /* --------------------------------------------------------------- */
+
+  
   }
 }
