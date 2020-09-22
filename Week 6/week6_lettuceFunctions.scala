@@ -603,7 +603,7 @@ object lettuceEval {
      * 
      * >> Assume static scoping, and then 'force' dynamic scoping by 
      *    putting the dynamic scoped variable directly into the inline
-     *    function definition wherever it will be used. 
+     *    function definition wherever it is called.
      * 
      * Steps:
      *    (1) copy the function definition to be dynamically scoped
@@ -649,5 +649,48 @@ object lettuceEval {
      * references 'x', but we renamed it to 'xNew'
      */        
     /* --------------------------------------------------------------- */
+
+    /**
+     * Implementing static scoping in Lettuce
+     * 
+     *   >> What is a Closure? 
+     *      > function(x) e with environment 𝜎
+     *      > A function definition: 'function(x) { expr }' where x is the
+     *        formal parameter and expr is the body of the function.
+     *      > An environment: 𝜎 defining variables occuring in the body of
+     *        the function 'expr'
+     *      > function(x) e with environment 𝜎
+     *      > Any var occuring freely requires an environment mapping
+     * 
+     * EX: function definition : function(y) x + y * y
+     * 
+     *     y  :   formal parameter
+     *     x  :   identifier in 'expr' freely in the function definition
+     * 
+     *    Convert this function definition to a closure ...
+     *    
+     *    Closure( y, x + y * y, { x ↦ 10 } )
+     *    
+     *     y           :      formal parameter
+     *     x + y * y   :      function definition
+     *     { x ↦ 10 }  :     environment mapping
+     * 
+     * 
+     * EX: function definition : function(x) function(y) x + y - 2 * z
+     * 
+     *      x                :       formal parameter
+     *      function(y)      :       function definition
+     *      x + y - 2 * z    :       function definition
+     *      { z ↦ 100 }     :       environment mapping
+     * 
+     *    Closure( x, function(y) x + y - 2 * z, { z ↦ 100 } )
+     * 
+     *    Since z occurs freely it is mapped from the environment and so
+     *    the closure requires a value for 'z' from the environment.
+     * 
+     * 
+     */
+    /* --------------------------------------------------------------- */
+
   }
 }
