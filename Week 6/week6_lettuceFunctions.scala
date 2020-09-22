@@ -85,6 +85,19 @@ case class BoolValue( b : Boolean ) extends Value
 case object ErrorValue extends Value
 /* --------------------------------------------------------------- */
 
+/**
+ * Grammar for Lettuce event class used to demo callbacks
+ * 
+ * Event -> KeyPress( Int )
+ *        | MouseClick( Int, Int )
+ *        | PrintStatistics()
+ */
+sealed trait Event;
+case class Keypress( key : Int ) extends Event;
+case class MouseClick( x : Int, y : Int ) extends Event;
+case object PrintStatistics extends Event;
+/* --------------------------------------------------------------- */
+
 
 /**
  * Lettuce eval function that takes a Lettuce program written in
@@ -524,7 +537,8 @@ object lettuceEval {
      * Scala static scoping: Partial application of functions
      * 
      *  >> Can define functions whose args are bound at definition time
-     *  >> Ex: define 'boundMatchFunc' which calls another function 
+     *     
+     *     Ex: define 'boundMatchFunc' which calls another function 
      *         'matchAgainstList' and passes it the statically scoped 
      *          reflist.
      * 
