@@ -636,9 +636,18 @@ object lettuceEval {
      *      let x = x * y in
      *        let f = function(z) z * y + x in  <-- (1) copy f(z) z * y + x
      *          let x = y in
-     *            (10 * y + y) + (15 * y + y)  <-- (2) paste where 'f' is called 
+     *            (10 * y + x) + (15 * y + x)  <-- (2) paste where 'f' is called 
      *                                             (3) replace 'z' with z=10, z=15
-     */                               
-  
+     * 
+     * So -- we know to substitute the dynamic scoped variable 'x' in 
+     * both examples: 'x = y' or 'x = 15' directly into the function 
+     * definitions wherever a function call occurs ('inline'). 
+     * 
+     * But, if the user changes the dynamically scoped variable identifier from
+     * 'x' to something else, e.g. 'xNew', unexpected behavior can occur. Why?
+     * Because the 'inline' function definition that we copy/paste still 
+     * references 'x', but we renamed it to 'xNew'
+     */        
+    /* --------------------------------------------------------------- */
   }
 }
