@@ -110,8 +110,8 @@ object lettuceEval {
   /**
    * Helper functions:
    * 
-   * Convert a Lettuce value from the eval function to a double
-   * or boolean
+   * Convert a Lettuce value from the eval function to a double, 
+   * boolean, or closure
    */
   def valConvert( v : Value ) : Double = {
 
@@ -129,6 +129,17 @@ object lettuceEval {
     ( v ) match {
 
       case BoolValue( b ) => b;
+      case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
+
+    }
+
+  }
+
+  def closureConvert( v : Value ) : Closure = {
+
+    ( v ) match {
+
+      case Closure( p, e, pi ) => Closure( p, e, pi );
       case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
 
     }
