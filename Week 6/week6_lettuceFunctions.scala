@@ -752,9 +752,24 @@ object lettuceEval {
      * Summary:
      * (1) eval the argument (x) in the function call, get value (v)
      * (2) Extend the environment of the function being called to include
-     *     the evaluated argument (x -> v).
-     * (3) Use the extended environment to proceed by evaluating the expressions
+     *     the evaluated argument (x -> v), i.e. (p -> v).
+     * (3) Use the extended environment to evaluate the expressions
      *     in the body of the function, that is, 'e' in Closure( p, e, 𝜋 )
+     * 
+     * Error rules:
+     * 
+     *    function is not a closure
+     * 
+     *                       eval(f-exp, 𝜎) ∉ ℂ
+     *  -------------------------------------------------------------- (no clos)
+     *            eval(FuncCall(f-exp, arg-exp), 𝜎) = error
+     * 
+     * 
+     *    function argument cannot be evaluated
+     * 
+     *      eval(f-exp,𝜎)=Closure(p,e,𝜋), eval(arg-exp, 𝜎) = error
+     *  -------------------------------------------------------------- (no clos)
+     *            eval(FuncCall(f-exp, arg-exp), 𝜎) = error
      */
     /* --------------------------------------------------------------- */
 
