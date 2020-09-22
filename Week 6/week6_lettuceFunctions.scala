@@ -474,7 +474,7 @@ object lettuceEval {
                                     )
                                   );
     assert( program_6 == program_6_again );
-
+    /* --------------------------------------------------------------- */
 
     /**
      * Static vs. dynamic scoping for function calls
@@ -490,7 +490,7 @@ object lettuceEval {
      * f( 10 )
      * 
      * Recall:
-     * Static scoping : Resolve vars when a function is definition
+     * Static scoping : Resolve vars when a function is defined
      * Dynamic scoping : Resolve vars when a function is called
      * 
      * Error: Recursive function not in scope
@@ -518,16 +518,39 @@ object lettuceEval {
                             FunCall( Ident( "f" ), Const( 10 ) ) 
                           ) 
                         )
-
     /* --------------------------------------------------------------- */
     
+    /**
+     * Scala static scoping: Partial application of functions
+     * 
+     *  >> Can define functions whose args are bound at definition time
+     *  >> Ex: define 'boundMatchFunc' which calls another function 
+     *         'matchAgainstList' and passes it the statically scoped 
+     *          reflist.
+     * 
+     *         This forces the refList passed at definition time to be
+     *         used by 'boundMatchFunc' when it calls 'matchAgainstList'.
+     * 
+     *         The parameter of 'boundMatchFunc' takes any list of integers
+     *         and passes it as lstB when calling 'matchAgainstList'
+     * 
+     *    So: Static scoping can 'lock in' parameters to arguments defined
+     *    at definition time.
+     */
+    def matchAgainstList( ref_lst : List[ Int ] )( lstB: List[ Int ] ) = {
+      def belongsToRefList( x : Int ) = {
+        ref_lst.contains( x );
+      }
+      lstB.exists( belongsToRefList );
+    }
 
-
-
-
-
-
-
+    val refList = List( 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 );  // Passed bound arg at def time
+    val boundMatchFunc : ( List[ Int ] => Boolean ) = matchAgainstList( refList ) ( _ );
+    {
+      val refList = List( 11, 12, 13, 14 );  // not used!
+      boundMatchFunc( List( 5, 6, 7, 8 ) );  // Recursive call: pass lstB as ( _ )
+    }
+    /* --------------------------------------------------------------- */
 
   }
 }
