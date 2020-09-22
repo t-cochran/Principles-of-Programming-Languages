@@ -598,6 +598,47 @@ object lettuceEval {
     } 
     /* --------------------------------------------------------------- */
 
+    /**
+     * Implementing dynamic scoping in Lettuce
+     * 
+     * >> Assume static scoping, and then 'force' dynamic scoping by 
+     *    putting the dynamic scoped variable directly into the inline
+     *    function definition wherever it will be used. 
+     * 
+     * Steps:
+     *    (1) copy the function definition to be dynamically scoped
+     *    (2) paste the function definition where the function is called
+     *    (3) replace the dynamically scoped variable in the function
+     *        definition with whatever the dynamically scoped var is
+     * 
+     * EX: Statically scoped
+     *    let x = 10 in 
+     *      let f = function(y) y * x in
+     *        let x = 15 in
+     *          f(10)
+     * 
+     * EX: Dynamically scoped:    
+     *    let x = 10 in 
+     *      let f = function(y) y * x in   <-- (1) copy f(y) returns y * x
+     *        let x = 15 in
+     *          (10 * x)      <-- (2) paste where 'f' is called
+     *                            (3) replace 'x' with x = 15
+     * 
+     * EX: Statically scoped
+     *    let y = 15 in
+     *      let x = x * y in
+     *        let f = function(z) z * y + x in
+     *          let x = y in
+     *            f(10) + f(15) 
+     * 
+     * EX: Dynamically scoped
+     *    let y = 15 in
+     *      let x = x * y in
+     *        let f = function(z) z * y + x in  <-- (1) copy f(z) z * y + x
+     *          let x = y in
+     *            (10 * y + y) + (15 * y + y)  <-- (2) paste where 'f' is called 
+     *                                             (3) replace 'z' with z=10, z=15
+     */                               
   
   }
 }
