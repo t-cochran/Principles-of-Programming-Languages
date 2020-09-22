@@ -71,15 +71,17 @@ case class FunCall( funCalled: Expr, argExpr: Expr ) extends Expr
 /**
  * Grammar for Lettuce values that are evaluated
  *
- * Value -> NumValue( Double )
+ * Value -> Closure( String, Expr, Map[String, Value] )
+ *       |  NumValue( Double )
  *       |  BoolValue( Boolean )
  *       |  ErrorValue
  * 
  * Double -> -2 | -1 | 0 | 1 | 2 . . .
  * Boolean -> true | false
- * 
+ * String -> [a-zA-Z0-9_-]+
  */
 sealed trait Value
+case class Closure( p : String, e : Expr, pi : Map[ String, Value ] );
 case class NumValue( d : Double ) extends Value
 case class BoolValue( b : Boolean ) extends Value
 case object ErrorValue extends Value
