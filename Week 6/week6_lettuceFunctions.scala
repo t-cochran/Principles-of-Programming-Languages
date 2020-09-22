@@ -648,10 +648,24 @@ object lettuceEval {
      * Because the 'inline' function definition that we copy/paste still 
      * references 'x', but we renamed it to 'xNew'
      */        
+    // x_1 is statically typed in scala
+    val x_1 = 10;
+    val func_1 : ( Int => Int ) = _ * x_1;
+    {
+      val x_1 = 15;
+      println( func_1( 10 ) ); // out: 100
+    }
+    // force x_1 to be dynamically typed
+    val x_2 = 10;
+    val func_2 : ( Int => Int ) = _ * x_1;
+    {
+      val x_2 = 15;
+      println( ( 10 * x_2 ) ); // out: 150
+    }
     /* --------------------------------------------------------------- */
-
+  
     /**
-     * Implementing static scoping in Lettuce
+     * Implementing function definitions in Lettuce
      * 
      *   >> What is a Closure? 
      *      > function(x) e with environment 𝜎
@@ -686,11 +700,65 @@ object lettuceEval {
      *    Closure( x, function(y) x + y - 2 * z, { z ↦ 100 } )
      * 
      *    Since z occurs freely it is mapped from the environment and so
-     *    the closure requires a value for 'z' from the environment.
+     *    the closure requires a value for 'z' from the environment. 
+     *    x and y are bound to the formal parameters of functions.
      * 
      * 
      */
     /* --------------------------------------------------------------- */
+
+    /**
+     * Implementing function calls in Lettuce
+     * 
+     * Recall: 'eval( e, 𝜎 ) = v' is evaluating 'e' under environment '𝜎'
+     *          yields Value 'v'
+     * 
+     * 'Value' can be a Closure now, of the form: Closure( x, e, 𝜎 )
+     * 
+     * Rule for handling function definitions for static typing:
+     * 
+     *    ------------------------------------------------- (func def)
+     *      eval(FuncDef(x, e), 𝜎) = Closure( x, e, 𝜎 )
+     * 
+     * Rule for handling function calls:
+     * 
+     *   eval(f-exp,𝜎)=Closure(p,e,𝜋),eval(arg-exp, 𝜎)=v2, v2!= error 
+     *  -------------------------------------------------------------- (func call)
+     *     eval(FuncCall(f-exp, arg-exp), 𝜎) = eval(e, 𝜋[p ↦ v2])
+     * 
+     * eval(f-exp,𝜎)=Closure(p,e,𝜋)  evaluate the function definition
+     *  f-exp    :    the function we are calling with a Closure (definition)
+     *      p    :    formal parameter
+     *      e    :    body exprs
+     *      𝜋    :    environment that was saved at define time
+     * 
+     * 
+     * eval(arg-exp, 𝜎)=v2  evaluate the function argument
+     *  arg-exp  :    the argument to the function call
+     *      𝜎    :    environment mapping to evaluate arguments
+     *      v2   :    Value that the evaluated argument
+     * 
+     * So, if we have a function definition with a closure, whose
+     * arguments evaluate to some Value 'v2', then we can call the 
+     * function. 
+     * 
+     * This is done by taking the function argument eval 'v2',
+     * and including this value ( x -> v2 ) in the "closed" environment
+     * of the function definition ( pi; in the closure ). With this
+     * EXTENDED ENVIRONMENT in the closure from EVALUATING THE
+     * ARGUMENT, expressions in the body of the closure can be
+     * evaluated. 
+     * 
+     * Summary:
+     * (1) eval the argument (x) in the function call, get value (v)
+     * (2) Extend the environment of the function being called to include
+     *     the evaluated argument (x -> v).
+     * (3) Use the extended environment to proceed by evaluating the expressions
+     *     in the body of the function, that is, 'e' in Closure( p, e, 𝜋 )
+     */
+    /* --------------------------------------------------------------- */
+
+
 
   }
 }
