@@ -798,6 +798,16 @@ object lettuceEval {
      *            eval(FuncCall(f-exp, arg-exp), 𝜎) = error
      */
     /* --------------------------------------------------------------- */
+    val ret_4 : Value = evalProgram( program_4 );
+    val ret_5 : Value = evalProgram( program_5 );
+    val ret_6 : Value = evalProgram( program_6 );
 
+    println( 
+      s"""
+      program_4 evaluated: ${ valConvert( ret_4 ) } 
+      program_5 evaluated: ${ valConvert( ret_5 ) }
+      program_6 evaluated: ${ valConvert( ret_6 ) }
+      """ 
+    );
   }
 }
