@@ -570,7 +570,7 @@ object lettuceRecur {
     /* --------------------------------------------------------------- */
 
     /**
-     * Implementing recursion in Lettuce
+     * Implementing recursion in Lettuce -- The problem and solution
      * 
      * let fact = function (x)
      *      if ( x <= 0 )
@@ -599,7 +599,9 @@ object lettuceRecur {
      * -----------
      * The identifier "x" or "fact" in a recursive function appears in 
      * the defining expression as well, where its not going to be part
-     * of the environment.
+     * of the environment. An attempt is made to find what 'x' or 'fact'
+     * maps to during 'eval(e1, env)' but there is no 'x' or 'fact' in
+     * env yet.
      * 
      * Explanation:
      * ---------------
@@ -630,16 +632,43 @@ object lettuceRecur {
      *    Let( Identifier, Expr, Expr )
      *    LetRec( Identifier, Identifier, Expr, Expr )
      * 
+     * Example:
+     * -----------
+     * let rec f = function(z)
+     *                if ( 0 >= z )
+     *                then 1
+     *                else 1 + f(z - 1)
+     *             in
+     *                f(10)
+     * 
+     * LetRec( "f", "z", 
+     *   IfThenElse( Geq( Const( 0 ), Ident( "z" ) ), 
+     *               Const( 1 ),
+     *               Plus( 
+     *                 Const( 1 ), 
+     *                 FunCall( 
+     *                   Ident( "f" ), 
+     *                   Minus( Ident( "z" ), Const( 1 ) ) 
+     *                 ) 
+     *               )
+     *             ),
+     *   FunCall( Ident( "f" ), Const( 10 ) )
+     * );
      * 
      */
-
-
-
-
-
-
-
-
+    val program_7 = LetRec( "f", "z", 
+            IfThenElse( Geq( Const( 0 ), Ident( "z" ) ), 
+                        Const( 1 ),
+                        Plus( 
+                          Const( 1 ), 
+                          FunCall( 
+                            Ident( "f" ), 
+                            Minus( Ident( "z" ), Const( 1 ) ) 
+                          ) 
+                        )
+                      ),
+            FunCall( Ident( "f" ), Const( 10 ) )
+    );
 
   }
 }
