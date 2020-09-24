@@ -1,7 +1,7 @@
 /** 
  * File: week6_lettuceFunctions.scala
  * 
- * Working through the material on the Let language
+ * Working through the material on the Let language with functions
  */
 
 /**
