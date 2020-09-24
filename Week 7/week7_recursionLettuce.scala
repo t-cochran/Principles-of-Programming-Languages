@@ -28,6 +28,7 @@
  *        |    Not( Expr )
  *        |    IfThenElse( Expr, Expr, Expr )
  *        |    Let( String, Expr, Expr )
+ *        |    Let( String, String, Expr, Expr )
  *        |    FunDef( String, Expr )
  *        |    FunCall( Expr, Expr )
  * 
@@ -64,6 +65,9 @@ case class Not( e: Expr ) extends Expr
 case class IfThenElse( e: Expr, eIf: Expr, eElse: Expr ) extends Expr
 
 case class Let( s: String, defExpr: Expr, bodyExpr: Expr ) extends Expr
+case class LetRec( funcName : String, funcParam : String, 
+                   defExpr : Expr, bodyExpr : Expr) extends Expr
+
 case class FunDef( param: String, bodyExpr: Expr ) extends Expr
 case class FunCall( funCalled: Expr, argExpr: Expr ) extends Expr
 /* --------------------------------------------------------------- */
@@ -565,7 +569,6 @@ object lettuceRecur {
     );
     /* --------------------------------------------------------------- */
 
-
     /**
      * Implementing recursion in Lettuce
      * 
@@ -609,10 +612,24 @@ object lettuceRecur {
      * evaluating the body expression e2 (e.g. when calling a function 
      * the function being defined). 
      * 
-     * The recursive function call itself is in the defining expression e1,
-     * but we need to finish evaluating the defining expression e1 to get the
-     * new environment mapping 𝜎[x ↦ v1] in order to call the function in the
-     * first place!!
+     * The recursive function is in the defining expression e1, but we need 
+     * to finish evaluating the defining expression e1 to get the new 
+     * environment mapping 𝜎[x ↦ v1] in order to call the function in the
+     * first place.
+     * 
+     * Solution:
+     * ------------
+     * Use a 'let rec' construct to indicate that recursion will occur:
+     * 
+     *  let rec <func_identifier> = function (<param_identifier>)
+     *                                  <def_expr>
+     *                              in
+     *                                  <body_expr>
+     * 
+     * Grammars:
+     *    Let( Identifier, Expr, Expr )
+     *    LetRec( Identifier, Identifier, Expr, Expr )
+     * 
      * 
      */
 
