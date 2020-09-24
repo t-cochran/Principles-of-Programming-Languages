@@ -563,5 +563,66 @@ object lettuceRecur {
       program_6 evaluated: ${ valConvert( ret_6 ) }
       """ 
     );
+    /* --------------------------------------------------------------- */
+
+
+    /**
+     * Implementing recursion in Lettuce
+     * 
+     * let fact = function (x)
+     *      if ( x <= 0 )
+     *      then 1
+     *      else x * fact( x - 1 )
+     *    in
+     *      fact( 20 )
+     * 
+     * Recall:  Let( s: String, defExpr: Expr, bodyExpr: Expr )
+     * 
+     * Let( "fact", FunDef( "x", IfThenElse( 
+     *   Geq( Const( 0 ), Ident( "x" ) ), 
+     *     Const( 1 ), 
+     *   Mult( Ident( "x" ), 
+     *      FunCall( Ident( "fact" ), Minus( Ident( "x" ), Const( 1 ) ) ) ) ) ), 
+     *   FunCall( Ident( "fact" ), Const( 20 ) ) 
+     * );
+     * 
+     * Recall eval: 
+     *   case Let( x, e1, e2 ) => {
+     *      val v1 = eval( e1, env )    // eval defining expr e1 under 𝜎
+     *      val env_2 = env + (x -> v1) // extend env map 𝜎 to include x ↦ v1
+     *      eval( e2, env_2 )           // eval body e2 with 𝜎[x ↦ v1] map
+     * 
+     * Problem: 
+     * -----------
+     * The identifier "x" or "fact" in a recursive function appears in 
+     * the defining expression as well, where its not going to be part
+     * of the environment.
+     * 
+     * Explanation:
+     * ---------------
+     * In recursion, the Let( x, .. ) identifier 'x' that extends the
+     * environment 𝜎[x ↦ v1] is NOT IN SCOPE when we evaluate the defining 
+     * expr e1 if e1 contains a recursive call!! 
+     * 
+     * In other words, evaluating identifier 'x' under 𝜎 extends the 
+     * environment with 𝜎[x ↦ v1]. This mapping is required when 
+     * evaluating the body expression e2 (e.g. when calling a function 
+     * the function being defined). 
+     * 
+     * The recursive function call itself is in the defining expression e1,
+     * but we need to finish evaluating the defining expression e1 to get the
+     * new environment mapping 𝜎[x ↦ v1] in order to call the function in the
+     * first place!!
+     * 
+     */
+
+
+
+
+
+
+
+
+
   }
 }
