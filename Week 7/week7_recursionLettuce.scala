@@ -88,20 +88,6 @@ case object ErrorValue extends Value
 /* --------------------------------------------------------------- */
 
 /**
- * Grammar for Lettuce event class used to demo callbacks
- * 
- * Event -> KeyPress( Int )
- *        | MouseClick( Int, Int )
- *        | PrintStatistics()
- */
-sealed trait Event;
-case class KeyPress( key : Int ) extends Event;
-case class MouseClick( x : Int, y : Int ) extends Event;
-case object PrintStatistics extends Event;
-/* --------------------------------------------------------------- */
-
-
-/**
  * Lettuce eval function that takes a Lettuce program written in
  * abstract syntax, and evaluates the program to return a result
  */
@@ -114,36 +100,22 @@ object lettuceRecur {
    * boolean, or closure
    */
   def valConvert( v : Value ) : Double = {
-
     ( v ) match {
-
       case NumValue( d ) => d;
       case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
-
     }
-
   }
-
   def boolConvert( v : Value ) : Boolean = {
-
     ( v ) match {
-
       case BoolValue( b ) => b;
       case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
-
     }
-
   }
-
   def closureConvert( v : Value ) : Closure = {
-
     ( v ) match {
-
       case Closure( p, e, pi ) => Closure( p, e, pi );
       case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
-
     }
-
   }
   /* --------------------------------------------------------------- */
 
@@ -514,225 +486,7 @@ object lettuceRecur {
                                   );
     assert( program_6 == program_6_again );
     /* --------------------------------------------------------------- */
-
-    /**
-     * Static vs. dynamic scoping for function calls
-     * 
-     * let x = 10 in 
-     *  let f = function(y) y * x in
-     *    let x = 15 in
-     *      f(10)
-     * 
-     * val x = 10                     <-- x used in Static scoping
-     * val f = ( y : Int ) => y * x
-     * val x = 15                     <-- x used in Dynamic scoping
-     * f( 10 )
-     * 
-     * Recall:
-     * Static scoping : Resolve vars when a function is defined
-     * Dynamic scoping : Resolve vars when a function is called
-     * 
-     * Error: Recursive function not in scope
-     * 
-     * let f 
-     *       = function(x)    <---------------|
-     *          if ( 0 >= x )                 |
-     *              then 1                    |-exprA
-     *          else                          |
-     *              ( x - 1 ) * f( x - 1 )  <-|
-     *      in
-     *          f( 10 )         <-- exprB
-     * 
-     * Format: let f = exprA in exprB
-     * 
-     *    'f' is NOT in scope when calling f( x - 1 ) in
-     *     exprA
-     */
-    val program_7_bad = TopLevel( 
-                          Let( "f", FunDef( "x", 
-                            IfThenElse( 
-                              Geq( Const( 0 ), Ident( "x" ) ), Const( 1 ), 
-                              Mult( Minus( Ident( "x" ), Const( 1 ) ), FunCall( Ident( "f" ), Minus( Ident( "x" ), Const( 1 ) ) ) ) 
-                            ) ),
-                            FunCall( Ident( "f" ), Const( 10 ) ) 
-                          ) 
-                        )
-    /* --------------------------------------------------------------- */
-    
-    /**
-     * Scala static scoping: Partial application of functions
-     * 
-     *  >> Can define functions whose args are bound at definition time
-     *     
-     *     Ex: define 'boundMatchFunc' which calls another function 
-     *         'matchAgainstList' and passes it the statically scoped 
-     *          reflist.
-     * 
-     *         This forces the refList passed at definition time to be
-     *         used by 'boundMatchFunc' when it calls 'matchAgainstList'.
-     * 
-     *         The parameter of 'boundMatchFunc' takes any list of integers
-     *         and passes it as lstB when calling 'matchAgainstList'
-     * 
-     *    So: Static scoping can 'lock in' parameters to arguments defined
-     *    at definition time.
-     */
-    def matchAgainstList( ref_lst : List[ Int ] )( lstB: List[ Int ] ) = {
-      def belongsToRefList( x : Int ) = {
-        ref_lst.contains( x );
-      }
-      lstB.exists( belongsToRefList );
-    }
-
-    val refList = List( 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 );  // Passed bound arg at def time
-    val boundMatchFunc : ( List[ Int ] => Boolean ) = matchAgainstList( refList ) ( _ );
-    {
-      val refList = List( 11, 12, 13, 14 );  // not used!
-      boundMatchFunc( List( 5, 6, 7, 8 ) );  // Recursive call: pass lstB as ( _ )
-    }
-    /* --------------------------------------------------------------- */
-
-    /**
-     * Scala static scoping: callbacks
-     * 
-     *  >> Can define callbacks to handle events 
-     *  >> Use partially applied function to bind extra info into the 
-     *     callback function
-     * 
-     *     Ex: 
-     *     KeyPressEventHandler takes no arguments and returns a function
-     *     that takes an `Event` and performs some `Unit` action.
-     * 
-     *     In this case, 'keyPressedSoFar' is declared before the event
-     *     callback is defined, so it is used to collect keypresses when 
-     *     the callback is called.
-     */
-    def keyPressEventHandler() : ( Event => Unit ) ={
-
-      var keysPressedSoFar : Set[ Int ] = Set(); // Mutable set of keys pressed
-      
-      // Match an 'Event' to an action 'Unit'
-      def keyPressEventCallBack( event : Event ) : Unit = {
-        event match{
-          // Append keypress to the set of keysPressedSoFar
-          case KeyPress(key) => keysPressedSoFar = keysPressedSoFar ++ Set( key )
-          case PrintStatistics => println( "keys pressed so far: " + keysPressedSoFar );
-          case _ => ();
-        }
-      }
-      keyPressEventCallBack;
-    } 
-    /* --------------------------------------------------------------- */
-
-    /**
-     * Implementing dynamic scoping in Lettuce
-     * 
-     * >> Assume static scoping, and then 'force' dynamic scoping by 
-     *    putting the dynamic scoped variable directly into the inline
-     *    function definition wherever it is called.
-     * 
-     * Steps:
-     *    (1) copy the function definition to be dynamically scoped
-     *    (2) paste the function definition where the function is called
-     *    (3) replace the dynamically scoped variable in the function
-     *        definition with whatever the dynamically scoped var is
-     * 
-     * EX: Statically scoped
-     *    let x = 10 in 
-     *      let f = function(y) y * x in
-     *        let x = 15 in
-     *          f(10)
-     * 
-     * EX: Dynamically scoped:    
-     *    let x = 10 in 
-     *      let f = function(y) y * x in   <-- (1) copy f(y) returns y * x
-     *        let x = 15 in
-     *          (10 * x)      <-- (2) paste where 'f' is called
-     *                            (3) replace 'x' with x = 15
-     * 
-     * EX: Statically scoped
-     *    let y = 15 in
-     *      let x = x * y in
-     *        let f = function(z) z * y + x in
-     *          let x = y in
-     *            f(10) + f(15) 
-     * 
-     * EX: Dynamically scoped
-     *    let y = 15 in
-     *      let x = x * y in
-     *        let f = function(z) z * y + x in  <-- (1) copy f(z) z * y + x
-     *          let x = y in
-     *            (10 * y + x) + (15 * y + x)  <-- (2) paste where 'f' is called 
-     *                                             (3) replace 'z' with z=10, z=15
-     * 
-     * So -- we know to substitute the dynamic scoped variable 'x' in 
-     * both examples: 'x = y' or 'x = 15' directly into the function 
-     * definitions wherever a function call occurs ('inline'). 
-     * 
-     * But, if the user changes the dynamically scoped variable identifier from
-     * 'x' to something else, e.g. 'xNew', unexpected behavior can occur. Why?
-     * Because the 'inline' function definition that we copy/paste still 
-     * references 'x', but we renamed it to 'xNew'
-     */        
-    // x_1 is statically typed in scala
-    val x_1 = 10;
-    val func_1 : ( Int => Int ) = _ * x_1;
-    {
-      val x_1 = 15;
-      println( func_1( 10 ) ); // out: 100
-    }
-    // force x_1 to be dynamically typed
-    val x_2 = 10;
-    val func_2 : ( Int => Int ) = _ * x_1;
-    {
-      val x_2 = 15;
-      println( ( 10 * x_2 ) ); // out: 150
-    }
-    /* --------------------------------------------------------------- */
   
-    /**
-     * Implementing function definitions in Lettuce
-     * 
-     *   >> What is a Closure? 
-     *      > function(x) e with environment 𝜎
-     *      > A function definition: 'function(x) { expr }' where x is the
-     *        formal parameter and expr is the body of the function.
-     *      > An environment: 𝜎 defining variables occuring in the body of
-     *        the function 'expr'
-     *      > function(x) e with environment 𝜎
-     *      > Any var occuring freely requires an environment mapping
-     * 
-     * EX: function definition : function(y) x + y * y
-     * 
-     *     y  :   formal parameter
-     *     x  :   identifier in 'expr' freely in the function definition
-     * 
-     *    Convert this function definition to a closure ...
-     *    
-     *    Closure( y, x + y * y, { x ↦ 10 } )
-     *    
-     *     y           :      formal parameter
-     *     x + y * y   :      function definition
-     *     { x ↦ 10 }  :     environment mapping
-     * 
-     * 
-     * EX: function definition : function(x) function(y) x + y - 2 * z
-     * 
-     *      x                :       formal parameter
-     *      function(y)      :       function definition
-     *      x + y - 2 * z    :       function definition
-     *      { z ↦ 100 }     :       environment mapping
-     * 
-     *    Closure( x, function(y) x + y - 2 * z, { z ↦ 100 } )
-     * 
-     *    Since z occurs freely it is mapped from the environment and so
-     *    the closure requires a value for 'z' from the environment. 
-     *    x and y are bound to the formal parameters of functions.
-     * 
-     * 
-     */
-    /* --------------------------------------------------------------- */
-
     /**
      * Implementing function calls in Lettuce
      * 
