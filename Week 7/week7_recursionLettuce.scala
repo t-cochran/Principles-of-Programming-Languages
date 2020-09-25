@@ -578,18 +578,11 @@ object lettuceRecur {
      *      else x * fact( x - 1 )
      *    in
      *      fact( 20 )
-     * 
-     * Recall:  Let( s: String, defExpr: Expr, bodyExpr: Expr )
-     * 
-     * Let( "fact", FunDef( "x", IfThenElse( 
-     *   Geq( Const( 0 ), Ident( "x" ) ), 
-     *     Const( 1 ), 
-     *   Mult( Ident( "x" ), 
-     *      FunCall( Ident( "fact" ), Minus( Ident( "x" ), Const( 1 ) ) ) ) ) ), 
-     *   FunCall( Ident( "fact" ), Const( 20 ) ) 
-     * );
-     * 
-     * Recall eval: 
+     *
+     * Eval for 'Let':
+     * ---------------- 
+     *   Let( s: String, defExpr: Expr, bodyExpr: Expr )
+     *         ...
      *   case Let( x, e1, e2 ) => {
      *      val v1 = eval( e1, env )    // eval defining expr e1 under 𝜎
      *      val env_2 = env + (x -> v1) // extend env map 𝜎 to include x ↦ v1
@@ -605,123 +598,96 @@ object lettuceRecur {
      * 
      * Explanation:
      * ---------------
-     * In recursion, the Let( x, .. ) identifier 'x' that extends the
-     * environment 𝜎[x ↦ v1] is NOT IN SCOPE when we evaluate the defining 
-     * expr e1 if e1 contains a recursive call!! 
-     * 
-     * In other words, evaluating identifier 'x' under 𝜎 extends the 
-     * environment with 𝜎[x ↦ v1]. This mapping is required when 
-     * evaluating the body expression e2 (e.g. when calling a function 
-     * the function being defined). 
-     * 
-     * The recursive function is in the defining expression e1, but we need 
-     * to finish evaluating the defining expression e1 to get the new 
-     * environment mapping 𝜎[x ↦ v1] in order to call the function in the
-     * first place.
+     * Evaluating identifier 'x' under 𝜎 extends the environment with 
+     * 𝜎[x ↦ v1]. This mapping is required when evaluating the body 
+     * expression e2. The Let( x, .. ) identifier 'x' that extends the 
+     * environment 𝜎[x ↦ v1] is NOT IN SCOPE when we evaluate the 
+     * defining expr e1 if e1 contains a recursive call. 
      * 
      * Solution:
      * ------------
-     * Use a 'let rec' construct to indicate that recursion will occur:
+     * We need the defining expression to not reference a mapping to its 
+     * function identifier until the defining expression is evaluated
+     * and such a mapping can exist.
      * 
-     *  let rec <func_identifier> = function (<param_identifier>)
-     *                                  <def_expr>
-     *                              in
-     *                                  <body_expr>
+     * Create a curried function 'fact(f)(n)' that takes two args:
+     *  f : input function 'f' that computes a factorial
+     *  n : integer argument 'n'
      * 
-     * Grammars:
-     *    Let( Identifier, Expr, Expr )
-     *    LetRec( Identifier, Identifier, Expr, Expr )
+     * let fact = function(f)
+     *               function(n)
+     *                   if (n == 0)
+     *                   then 1
+     *                   else n * f( n - 1 )  // No ref to 'fact'
+     *             in                         
+     *               ...
      * 
-     * Example:
-     * -----------
-     * let rec f = function(z)
-     *                if ( 0 >= z )
-     *                then 1
-     *                else 1 + f(z - 1)
-     *             in
-     *                f(10)
+     * Let( "fact", 
+     *      FunDef( "f", 
+     *        FunDef( "n", 
+     *          IfThenElse( ... FunCall( Ident("f"), ... ) ) ), 
+     *      ... );
      * 
-     * LetRec( "f", "z", 
-     *   IfThenElse( Geq( Const( 0 ), Ident( "z" ) ), 
-     *               Const( 1 ),
-     *               Plus( 
-     *                 Const( 1 ), 
-     *                 FunCall( 
-     *                   Ident( "f" ), 
-     *                   Minus( Ident( "z" ), Const( 1 ) ) 
-     *                 ) 
-     *               )
-     *             ),
-     *   FunCall( Ident( "f" ), Const( 10 ) )
-     * );
+     * This solves the problem where the defining expression e1 contains 
+     * a recursive call to 'fact' which has no mapping to the env 𝜎.
      * 
+     * However, this would require 'fact' to pass two arguments: 'f', 'n'
+     * when it can only pass one 'f'. Therefore, more function currying:
+     * 
+     *                  f( n - 1 ) <=> f( f )( n - 1 )
+     * 
+     *    let fact = function(f)
+     *                  function(n)
+     *                      if (n == 0)
+     *                      then 1
+     *                      else n * f (f)(n - 1)
+     *                in
+     *                  ...
+     * 
+     * The defining expression of 'fact' has no reference to 'fact'. 
+     * It passes function 'f' and defines function(n) which calls 
+     * function 'f'. Its body expression defines a function 'g'
+     * which is calls fact as function 'f'. This is where the recursion
+     * takes place.
+     * 
+     * Implementation for factorial( 4 ):
+     * ----------------
+     *      let fact = function(f)               // factBody
+     *                   function(n)             
+     *                     if (n == 0)           // ite
+     *                     then 1
+     *                     else n * f (f)(n - 1) 
+     *                 in
+     *                   let g = function(n)     // in_2   
+     *                      fact( fact )( n )
+     *                   in
+     *                      g( 4 );              // in_1
      */
-    val program_7 = TopLevel( 
-          LetRec( "f", "z", 
-            IfThenElse( Geq( Const( 0 ), Ident( "z" ) ), 
-                        Const( 1 ),
-                        Plus( 
-                          Const( 1 ), 
-                          FunCall( 
-                            Ident( "f" ), 
-                            Minus( Ident( "z" ), Const( 1 ) ) 
-                          ) 
-                        )
-                      ),
-            FunCall( Ident( "f" ), Const( 10 ) )
-          )
-    );
-    // val ret_7 : Value = evalProgram( program_7 );
-    // println( s"program_7 evaluated: ${ valConvert( ret_7 ) }" );
+      val g = Ident( "g" );
+      val f = Ident( "f" );
+      val n = Ident( "n" );
+
+      val in_1 = FunCall( g, Const( 4 ) );
+      val in_2 = Let( "g", 
+                      FunDef( "n", FunCall(
+                        FunCall( Ident( "fact" ), Ident( "fact" ) ), n ) 
+                      ), 
+                      in_1 
+                  );
+      val ite = IfThenElse( Eq( n, Const(0)), Const(1), 
+                            Mult(n, 
+                              FunCall(
+                                FunCall(f, f), Minus(n, Const(1))
+                              )
+                            )
+                          );
+      val factBody = FunDef( "f", FunDef( "n", ite ) );
+
+      /* Evaluate 4! */
+      val program_7 = TopLevel( Let( "fact", factBody, in_2 ) );
+      val ret_7 : Value = evalProgram( program_7 );
+      println( s"program_7 evaluated: ${ valConvert( ret_7 ) }" );
     /* --------------------------------------------------------------- */
-
-    /**
-     * Implementing recursion in Lettuce -- Using a Y-combinator
-     * 
-     * In this case: 
-     *    (1) 'fact' defines function 'f' 
-     *    (2)  'f' defines function 'n' which does the recursion to 'f'
-     * 
-     *    let fact = function(f)
-     *                  function(n)
-     *                      if (n == 0)
-     *                      then 1
-     *                      else n * f( n - 1 )
-     *                in
-     *                  ...
-     * 
-     *  f : input function that computes a factorial
-     *  n : argument 'n' factorial
-     * 
-     * We get: Let( "fact", 
-     *           FunDef( "f", 
-     *             FunDef( "n", IfThenElse( ... FunCall( Ident("f"), ... ) ) ), 
-     *            ... );
-     * 
-     * In this case, identifier 'f' will evaluate the environment 'function(n)'. 
-     * This solves the earlier problem where the defining expression e1 contains 
-     * a recursive call to 'fact' or 'f' which has no mapping to the environment 𝜎. 
-     * This allows: 𝜎[ f ↦ v1 ]
-     * 
-     * Now: function(n) has a defining expression e1 containing a 'f'. This
-     * should be fine because 'f' exists in the environment when 'n' is 
-     * evaluated. We evaluate 'n' and get: 𝜎[ n ↦ v1 ]
-     * 
-     * Lastly: 
-     * 
-     *    let fact = function(f)
-     *                  function(n)
-     *                      if (n == 0)
-     *                      then 1
-     *                      else n * (f)(n - 1)
-     *                in
-     *                  ...
-     * 
-     */
-
-
-
-
 
   }
 }
