@@ -656,7 +656,8 @@ object lettuceRecur {
      * );
      * 
      */
-    val program_7 = LetRec( "f", "z", 
+    val program_7 = TopLevel( 
+          LetRec( "f", "z", 
             IfThenElse( Geq( Const( 0 ), Ident( "z" ) ), 
                         Const( 1 ),
                         Plus( 
@@ -668,7 +669,59 @@ object lettuceRecur {
                         )
                       ),
             FunCall( Ident( "f" ), Const( 10 ) )
+          )
     );
+    // val ret_7 : Value = evalProgram( program_7 );
+    // println( s"program_7 evaluated: ${ valConvert( ret_7 ) }" );
+    /* --------------------------------------------------------------- */
+
+    /**
+     * Implementing recursion in Lettuce -- Using a Y-combinator
+     * 
+     * In this case: 
+     *    (1) 'fact' defines function 'f' 
+     *    (2)  'f' defines function 'n' which does the recursion to 'f'
+     * 
+     *    let fact = function(f)
+     *                  function(n)
+     *                      if (n == 0)
+     *                      then 1
+     *                      else n * f( n - 1 )
+     *                in
+     *                  ...
+     * 
+     *  f : input function that computes a factorial
+     *  n : argument 'n' factorial
+     * 
+     * We get: Let( "fact", 
+     *           FunDef( "f", 
+     *             FunDef( "n", IfThenElse( ... FunCall( Ident("f"), ... ) ) ), 
+     *            ... );
+     * 
+     * In this case, identifier 'f' will evaluate the environment 'function(n)'. 
+     * This solves the earlier problem where the defining expression e1 contains 
+     * a recursive call to 'fact' or 'f' which has no mapping to the environment 𝜎. 
+     * This allows: 𝜎[ f ↦ v1 ]
+     * 
+     * Now: function(n) has a defining expression e1 containing a 'f'. This
+     * should be fine because 'f' exists in the environment when 'n' is 
+     * evaluated. We evaluate 'n' and get: 𝜎[ n ↦ v1 ]
+     * 
+     * Lastly: 
+     * 
+     *    let fact = function(f)
+     *                  function(n)
+     *                      if (n == 0)
+     *                      then 1
+     *                      else n * (f)(n - 1)
+     *                in
+     *                  ...
+     * 
+     */
+
+
+
+
 
   }
 }
