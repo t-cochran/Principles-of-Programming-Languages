@@ -671,7 +671,6 @@ object lettuceRecur {
       val g = Ident( "g" );
       val f = Ident( "f" );
       val n = Ident( "n" );
-
       val in_1 = FunCall( g, Const( 4 ) );
       val in_2 = Let( "g", 
                       FunDef( "n", FunCall(
@@ -748,8 +747,33 @@ object lettuceRecur {
      *                          fact( fact )( n )       |_ Step (2)
      *                      in                          |
      *                          g( 4 );  <--------------|
-     *                        
-     */ 
+     * 
+     * Another example for practice:
+     * 
+     *        [ BEFORE ]
+     *        let recFunc = function(x)
+     *            if (x >= 0)
+     *            then 0.5 * recFunc(1 - x)
+     *            else 20 * recFunc(0 - x)
+     *        in 
+     *            recFunc( -25 )
+     * 
+     *        [ AFTER ]
+     *        let recFunc = function(f)
+     *                        function(n)
+     *                          if (n >= 0)
+     *                          then 0.5 * f(f)(1 - n)
+     *                          else 20 * f(f)(0 - n)
+     *                      in
+     *                        let g = function(n)
+     *                          recFunc( recFunc )( n )
+     *                        in 
+     *                          g( -25 )
+     */
+    /* --------------------------------------------------------------- */
+
+
+
 
   }
 }
