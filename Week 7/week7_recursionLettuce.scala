@@ -317,6 +317,119 @@ object lettuceRecur {
   }
   /* --------------------------------------------------------------- */
 
+  /**
+   * Handle recursion in Lettuce by simply eliminating it.
+   * 
+   * Note: 
+   * (1) parameter 'id' fills in temporary names used during 
+   *     substitution
+   * (2) assumes the Let binding used is 'LetRec', that is you explicitly
+   *     tell the lettuce interpreter that it must handle a function
+   *     recursively. 
+   */
+  def substituteOccurrences(e: Expr, oldX: String, newX: Expr): Expr = { 
+    /**
+     * Helper functions:
+     * 
+     *    applyTo : Recurse through e1 and e2. Pass resulting Const() or 
+     *              Ident() with the substitution to the curried function 
+     *              'res' which returns the same arithmetic expression but
+     *              with the intended substitutions included.
+     * 
+     *    subs    : Recurse through expression e where the resulting
+     *              Const() or Ident() with substitution will be returned.
+     */
+    def applyTo (e1: Expr, e2: Expr) (res: (Expr,Expr) => Expr) = {
+            res(substituteOccurrences(e1, oldX, newX), 
+                substituteOccurrences(e2, oldX, newX)) 
+    }
+    def subs(e: Expr): Expr = { 
+      substituteOccurrences(e, oldX, newX)
+    }
+
+    /**
+     * Pattern match the recursive expression
+     */
+    e match {
+  
+      case Const(_) => e // Nothing to be done
+      case Ident(x) => if (x == oldX) newX else e // This is where the substitution happens!!
+      case Plus(e1, e2) => applyTo (e1, e2) (Plus(_, _)) 
+      case Minus(e1, e2) => applyTo (e1, e2) (Minus(_, _)) 
+      case Mult(e1, e2) => applyTo (e1, e2) (Mult(_, _)) 
+      case Eq(e1, e2) => applyTo (e1, e2) (Eq(_, _))
+      case Geq(e1, e2) => applyTo (e1, e2) (Geq(_, _))
+      case IfThenElse(e, e1, e2) => IfThenElse( subs(e), subs(e1), subs(e2) )
+      case Let(x, e1, e2) => {
+          val e1Hat = subs(e1)
+          if (x == oldX)
+              Let(x, e1Hat, e2) // Do not substitute anymore since oldX is not re-bound to e1Hat and thus out of scope
+          else
+              Let(x, e1Hat, subs(e2))
+      }
+      
+      case FunDef(x, e) => {
+          if (x == oldX)
+              FunDef(x, e) // Do not substitute since scope of oldX ends beacuse the function parameter shadows it
+          else 
+              FunDef(x, subs(e))
+      }
+      
+      case FunCall(e1, e2) => {
+          FunCall(subs(e1), subs(e2))
+      }
+      
+      case LetRec(f, x, e1, e2) => {
+          val e1Hat = if (x == oldX) e1 else subs(e1)
+          val e2Hat = if (f == oldX) e2 else subs(e2)
+          LetRec(f, x, e1Hat, e2Hat)
+      }
+    }
+  }
+
+  def removeRecur( e : Expr, id : Int = 0 ) : Expr = {
+
+    ( e ) match {
+      // No special recursion handling is involved when 'unwraping'
+      // these expressions. Simply return the underlying identifiers
+      // or constants
+      case Const( _ ) => e;
+      case Ident( _ ) => e;
+      case Plus( e1, e2 ) => Plus(removeRecur(e1), removeRecur(e2))
+      case Minus(e1, e2) => Minus (removeRecur(e1), removeRecur(e2))
+      case Mult(e1, e2) => Mult(removeRecur(e1), removeRecur(e2))
+      case Eq(e1, e2) => Eq(removeRecur(e1), removeRecur(e2))
+      case Geq(e1, e2) => Geq( removeRecur(e1), removeRecur(e2))
+      case IfThenElse(e, e1, e2) => {
+        IfThenElse( removeRecur(e), removeRecur(e1), removeRecur(e2))
+      }
+      case Let(x, e1, e2) => Let(x, removeRecur(e1), removeRecur(e2))
+      case FunDef(x, e) => FunDef(x, removeRecur(e))
+      case FunCall(e1, e2) => FunCall(removeRecur(e1), removeRecur(e2))
+
+      // When recursion is explicitly used via 'LetRec' follow the steps:
+      //   (1) substitute a new string 
+      //   (2) define the function call 'g'
+      //   (3) define <orig_func> as a func call in terms of 
+      case LetRec( fName, fparam, defExp, bodyExp ) => {
+        val fExpr = removeRecur(defExp, id + 1)
+        val bExpr = removeRecur(bodyExp, id + 2)
+        val almost_name = "almost_"+fName // Name of new function -- can be more sophisticated in choosing a name
+        val almost = Ident(almost_name)
+        val fun_defn = Let(fName, FunDef(fparam, FunCall(FunCall(almost, almost), Ident(fparam))), bExpr)
+        val tmp_fun_name = "rfun_param_tmp__" + id.toString + "__"
+        val tmp_expr = FunCall(Ident(tmp_fun_name), Ident(tmp_fun_name))
+        val new_f_expr = substituteOccurrences(fExpr, fName, tmp_expr) // Carry out the substitution
+        val almost_rfun_defn = FunDef(tmp_fun_name, FunDef(fparam, new_f_expr))
+        val almost_rfun = Let(almost_name, almost_rfun_defn, fun_defn)
+        almost_rfun
+      }
+
+    }
+
+  }
+  /* --------------------------------------------------------------- */
+
   def main( args : Array[ String ] ) : Unit = {
     /**
      * Test Lettuce Grammar: Concrete to abstract syntax
@@ -694,7 +807,7 @@ object lettuceRecur {
     /* --------------------------------------------------------------- */
 
     /**
-     * Steps to convert a recursive function in Lettuce:
+     * Steps to convert a recursive function in Lettuce by removing it:
      * 
      * (1) Replace all recursive calls in the defining expression to a 
      *     parameter function f(f):
@@ -771,9 +884,18 @@ object lettuceRecur {
      *                          g( -25 )
      */
     /* --------------------------------------------------------------- */
+    val e8 =  LetRec("fact", "n", 
+              IfThenElse(Eq(Ident("n"), Const(0)), Const(1), 
+                        Mult(Ident("n"), FunCall(Ident("fact"), Minus(Ident("n"), Const(1))))
+                        ),
+              FunCall(Ident("fact"), Const(7))
+              )
 
+    val fact_rec_8 = TopLevel( e7 );
 
-
+    val program_8 = TopLevel( removeRecur(e7) );
+    val ret_8 : Value = evalProgram( program_8 );
+    println( s"program_8 evaluated: ${ valConvert( ret_8 ) }" );
 
   }
 }
