@@ -658,10 +658,15 @@ object lettuceRecur {
      *                     then 1
      *                     else n * f (f)(n - 1) 
      *                 in
-     *                   let g = function(n)     // in_2   
+     *                   let g = function(n)     // in_2 (def)
      *                      fact( fact )( n )
      *                   in
-     *                      g( 4 );              // in_1
+     *                      g( 4 );              // in_1 (call)
+     * 
+     * g( 4 ) called --> fact( fact )( 4 ) called so f = fact(4)
+     * 4 * fact(fact)(3) called --> 3 * fact(fact)(2) called
+     * 2 * fact(fact)(2) called --> 1 * fact(fact)(0) called
+     * fact(fact)(0) = 1 called
      */
       val g = Ident( "g" );
       val f = Ident( "f" );
@@ -688,6 +693,63 @@ object lettuceRecur {
       val ret_7 : Value = evalProgram( program_7 );
       println( s"program_7 evaluated: ${ valConvert( ret_7 ) }" );
     /* --------------------------------------------------------------- */
+
+    /**
+     * Steps to convert a recursive function in Lettuce:
+     * 
+     * (1) Replace all recursive calls in the defining expression to a 
+     *     parameter function f(f):
+     * 
+     *      EX:
+     *        [ BEFORE ]
+     *        let fact = function(x)
+     *                      if (x == 0)
+     *                      then 1
+     *                      else n * fact(x - 1)  <-- rec call in def expr
+     *                    in
+     *                      fact(4)
+     *        [ AFTER ] 
+     *        let fact = function(f)             <-- param function 'f'
+     *                     function(n)              
+     *                       if (n == 0)               
+     *                       then 1               
+     *                       else n*f(f)(n - 1)  <-- param function f(f)
+     *                   in
+     *                      ...             
+     * 
+     * (2) Replace the body expression with function 'g' of the format:
+     * 
+     *      let g = function(n) 
+     *                <original_funct>( <original_funct> ) (n)
+     *              in
+     *                g( <argument passed> );
+     * 
+     *      EX:
+     *         [ BEFORE ]
+     *         in
+     *           fact(4)
+     *         
+     *         [ AFTER ]
+     *         in 
+     *           let fact = function(n) 
+     *              g( g )( n )
+     *           in
+     *              fact( 4 )
+     * 
+     * (3) Combine steps 1 and 2:
+     * 
+     *        let fact = function(f)  <------------------|
+     *                      function(n)                  |
+     *                        if (n == 0)                |- Step (1)
+     *                        then 1                     |
+     *                        else n * f( f )( n - 1 ) <-|
+     *                    in
+     *                      let g = function( n )  <----|
+     *                          fact( fact )( n )       |_ Step (2)
+     *                      in                          |
+     *                          g( 4 );  <--------------|
+     *                        
+     */ 
 
   }
 }
