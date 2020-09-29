@@ -73,9 +73,24 @@ case class FunCall( funCalled: Expr, argExpr: Expr ) extends Expr
 /* --------------------------------------------------------------- */
 
 /**
+ * Grammar for the Lettuce environment
+ *
+ * Environment -> EmptyEnv()
+ *             |  Extend( String, Value, Environment )
+ *             |  ExtendRec( String, String, Expr, Environment )
+ */
+sealed trait Environment
+case object EmptyEnv extends Environment
+case class Extend(x: String, v: Value, 
+                  sigma: Environment) extends Environment
+case class ExtendRec(f: String, x: String, e: Expr, 
+                     sigma: Environment ) extends Environment
+/* --------------------------------------------------------------- */
+
+/**
  * Grammar for Lettuce values that are evaluated
  *
- * Value -> Closure( String, Expr, Map[String, Value] )
+ * Value -> Closure( String, Expr, Environment )
  *       |  NumValue( Double )
  *       |  BoolValue( Boolean )
  *       |  ErrorValue
@@ -85,12 +100,13 @@ case class FunCall( funCalled: Expr, argExpr: Expr ) extends Expr
  * String -> [a-zA-Z0-9_-]+
  */
 sealed trait Value
-case class Closure( p : String, e : Expr, pi : Map[ String, Value ] ) extends Value;
+case class Closure( p : String, e : Expr, 
+                    pi : Environment ) extends Value;
 case class NumValue( d : Double ) extends Value
 case class BoolValue( b : Boolean ) extends Value
 case object ErrorValue extends Value
 /* --------------------------------------------------------------- */
-
+ 
 /**
  * Lettuce eval function that takes a Lettuce program written in
  * abstract syntax, and evaluates the program to return a result
@@ -121,12 +137,23 @@ object lettuceRecur {
       case _ => throw new IllegalArgumentException( s"Error converting value: $v" );
     }
   }
+  def lookupEnv( sigma : Environment, x : String ) : Value = {
+    ( sigma ) match {
+      case EmptyEnv => throw new IllegalArgumentException(s"Error could not find string $x in environment")
+      case Extend(y, v, _) if y == x => v
+      case Extend(_, _, pi) => lookupEnv(pi, x)
+      case ExtendRec(f, y, e, pi) => if (x == f) 
+                                      Closure(y, e, sigma)
+                                    else
+                                      lookupEnv(pi, x)
+    }
+  }
   /* --------------------------------------------------------------- */
 
   /**
    * Evaluate a lettuce expression for a given environment
    */
-  def eval( e : Expr, env : Map[ String, Value ] ) : Value = {
+  def eval( e : Expr, env : Environment ) : Value = {
 
     /**
      * Methods that get values from either a binary, unary or boolean operation,
@@ -169,14 +196,7 @@ object lettuceRecur {
       case Const( d ) => NumValue( d );
       case True => BoolValue( true );
       case False => BoolValue( false );
-      case Ident( d ) => {
-        if ( env contains d ) {
-          env( d );
-        }
-        else {
-          throw new IllegalArgumentException( s"Error: Ident( $d ) not found in env" );
-        }
-      }
+      case Ident( d ) => lookupEnv( env, d );
 
       /**
        * Evaluate binary expressions
@@ -266,9 +286,9 @@ object lettuceRecur {
        * Evaluate Let expressions
        */
       case Let( x, e1, e2 ) => {
-        val val_1 = eval( e1, env )      // eval e1
-        val env_2 = env + ( x -> val_1 ) // create a new extended env
-        eval( e2, env_2 )                // eval e2 under that.
+        val val_1 = eval( e1, env )         // eval e1
+        val env_2 = Extend( x, val_1, env ) // create a new extended env
+        eval( e2, env_2 )                   // eval e2 under that.
       }
   
       /**
@@ -283,7 +303,7 @@ object lettuceRecur {
         ( funcDefEval ) match {
           case Closure( funcParam, funcBody, closedFuncEnv ) => {
             // Extend the function environment to include the evaluated argument
-            val extendedEnv = closedFuncEnv + ( funcParam -> funcArgEval )
+            val extendedEnv = Extend( funcParam, funcArgEval, closedFuncEnv );
             // Evaluate the function body under the extended environment that
             // contains the evaluated function argument
             eval( funcBody, extendedEnv );
@@ -293,6 +313,11 @@ object lettuceRecur {
           )
         }
       }
+      // Handle recursion
+      case LetRec( rfun, x, fExpr, bExpr ) => {
+        val env2 = ExtendRec( rfun, x, fExpr, env );
+        eval( bExpr, env2 );
+      }
     }
   }
 
@@ -301,11 +326,10 @@ object lettuceRecur {
    * an empty environment mapping. 
    */
   def evalProgram( p : Program ) = {
-    val m : Map[ String, Value ] = Map[ String, Value ]();
     ( p ) match {
       case TopLevel( e ) => {
         try {
-          eval( e, m );
+          eval( e, EmptyEnv );
         } catch {
           case e: IllegalArgumentException => {
             println( s"Error: $e" );
@@ -361,28 +385,28 @@ object lettuceRecur {
       case Geq(e1, e2) => applyTo (e1, e2) (Geq(_, _))
       case IfThenElse(e, e1, e2) => IfThenElse( subs(e), subs(e1), subs(e2) )
       case Let(x, e1, e2) => {
-          val e1Hat = subs(e1)
-          if (x == oldX)
-              Let(x, e1Hat, e2) // Do not substitute anymore since oldX is not re-bound to e1Hat and thus out of scope
-          else
-              Let(x, e1Hat, subs(e2))
+        val e1Hat = subs(e1)
+        if (x == oldX)
+            Let(x, e1Hat, e2) // Do not substitute anymore since oldX is not re-bound to e1Hat and thus out of scope
+        else
+            Let(x, e1Hat, subs(e2))
       }
       
       case FunDef(x, e) => {
-          if (x == oldX)
-              FunDef(x, e) // Do not substitute since scope of oldX ends beacuse the function parameter shadows it
-          else 
-              FunDef(x, subs(e))
+        if (x == oldX)
+            FunDef(x, e) // Do not substitute since scope of oldX ends beacuse the function parameter shadows it
+        else 
+            FunDef(x, subs(e))
       }
       
       case FunCall(e1, e2) => {
-          FunCall(subs(e1), subs(e2))
+        FunCall(subs(e1), subs(e2))
       }
       
       case LetRec(f, x, e1, e2) => {
-          val e1Hat = if (x == oldX) e1 else subs(e1)
-          val e2Hat = if (f == oldX) e2 else subs(e2)
-          LetRec(f, x, e1Hat, e2Hat)
+        val e1Hat = if (x == oldX) e1 else subs(e1)
+        val e2Hat = if (f == oldX) e2 else subs(e2)
+        LetRec(f, x, e1Hat, e2Hat)
       }
     }
   }
@@ -407,21 +431,62 @@ object lettuceRecur {
       case FunDef(x, e) => FunDef(x, removeRecur(e))
       case FunCall(e1, e2) => FunCall(removeRecur(e1), removeRecur(e2))
 
-      // When recursion is explicitly used via 'LetRec' follow the steps:
-      //   (1) substitute a new string 
-      //   (2) define the function call 'g'
-      //   (3) define <orig_func> as a func call in terms of 
-      case LetRec( fName, fparam, defExp, bodyExp ) => {
+      /**
+       * When recursion is explicitly used via 'LetRec' follow the steps:
+       * 
+       * Recall: Translating concrete to abstract syntax usint 'LetRec'
+       * 
+       *  let rec f = function(z)  // fName, fparam
+       *    if (0 >= z)            // defExp
+       *    then 1
+       *    else 2
+       *  in                       // bodyExp
+       *    f(10)    
+       * 
+       *  LetRec("f", "z", 
+       *    IfThenElse(
+       *      Geq(Const(0), Ident("z")), 
+       *      Const(1), Const(2)
+       *    ), 
+       *    FunCall(Ident("f"), Const(10))
+       *  )
+       */
+      case LetRec(fName, fparam, defExp, bodyExp) => {
+
+        /**
+         * Get the underlying identifiers for defExp and bodyExp, each
+         * identified by a different 'id' number
+         */
         val fExpr = removeRecur(defExp, id + 1)
         val bExpr = removeRecur(bodyExp, id + 2)
-        val almost_name = "almost_"+fName // Name of new function -- can be more sophisticated in choosing a name
-        val almost = Ident(almost_name)
+
+        /**
+         * Create a name 'recFunc' with whatever the function name (fName) 
+         * string is, then wrap that new function name in an identifier
+         */
+        val recFunc = "recFunc"+fName
+        val almost = Ident(recFunc)
+
+        /**
+         * Create the new body expression:
+         * 
+         * Let
+         *      ...
+         * in
+         *   let fName = function( fparam )
+         *     almost( almost )( fparam ) 
+         */
         val fun_defn = Let(fName, FunDef(fparam, FunCall(FunCall(almost, almost), Ident(fparam))), bExpr)
+
+        /**
+         * Create a new function name using 'id', wrap an identifier around it,
+         * then pass it as a function to call, with itself as a parameter
+         */
         val tmp_fun_name = "rfun_param_tmp__" + id.toString + "__"
         val tmp_expr = FunCall(Ident(tmp_fun_name), Ident(tmp_fun_name))
         val new_f_expr = substituteOccurrences(fExpr, fName, tmp_expr) // Carry out the substitution
         val almost_rfun_defn = FunDef(tmp_fun_name, FunDef(fparam, new_f_expr))
-        val almost_rfun = Let(almost_name, almost_rfun_defn, fun_defn)
+        val almost_rfun = Let(recFunc, almost_rfun_defn, fun_defn)
         almost_rfun
       }
 
@@ -812,90 +877,159 @@ object lettuceRecur {
      * (1) Replace all recursive calls in the defining expression to a 
      *     parameter function f(f):
      * 
-     *      EX:
-     *        [ BEFORE ]
-     *        let fact = function(x)
-     *                      if (x == 0)
-     *                      then 1
-     *                      else n * fact(x - 1)  <-- rec call in def expr
-     *                    in
-     *                      fact(4)
-     *        [ AFTER ] 
-     *        let fact = function(f)             <-- param function 'f'
-     *                     function(n)              
-     *                       if (n == 0)               
-     *                       then 1               
-     *                       else n*f(f)(n - 1)  <-- param function f(f)
-     *                   in
-     *                      ...             
+     *  EX:
+     *    [ BEFORE ]
+     *    let fact = function(x)
+     *                  if (x == 0)
+     *                  then 1
+     *                  else n * fact(x - 1)  <-- rec call in def expr
+     *                in
+     *                  fact(4)
+     *    [ AFTER ] 
+     *    let fact = function(f)             <-- param function 'f'
+     *                 function(n)              
+     *                   if (n == 0)               
+     *                   then 1               
+     *                   else n*f(f)(n - 1)  <-- param function f(f)
+     *               in
+     *                  ...             
      * 
      * (2) Replace the body expression with function 'g' of the format:
      * 
-     *      let g = function(n) 
-     *                <original_funct>( <original_funct> ) (n)
-     *              in
-     *                g( <argument passed> );
+     *  let g = function(n) 
+     *            <original_funct>( <original_funct> ) (n)
+     *          in
+     *            g( <argument passed> );
      * 
-     *      EX:
-     *         [ BEFORE ]
-     *         in
-     *           fact(4)
-     *         
-     *         [ AFTER ]
-     *         in 
-     *           let fact = function(n) 
-     *              g( g )( n )
-     *           in
-     *              fact( 4 )
+     *  EX:
+     *     [ BEFORE ]
+     *     in
+     *       fact(4)
+     *     
+     *     [ AFTER ]
+     *     in 
+     *       let fact = function(n) 
+     *          g( g )( n )
+     *       in
+     *          fact( 4 )
      * 
      * (3) Combine steps 1 and 2:
      * 
-     *        let fact = function(f)  <------------------|
-     *                      function(n)                  |
-     *                        if (n == 0)                |- Step (1)
-     *                        then 1                     |
-     *                        else n * f( f )( n - 1 ) <-|
-     *                    in
-     *                      let g = function( n )  <----|
-     *                          fact( fact )( n )       |_ Step (2)
-     *                      in                          |
-     *                          g( 4 );  <--------------|
+     *  let fact = function(f)  <------------------|
+     *                function(n)                  |
+     *                  if (n == 0)                |- Step (1)
+     *                  then 1                     |
+     *                  else n * f( f )( n - 1 ) <-|
+     *              in
+     *                let g = function( n )  <----|
+     *                    fact( fact )( n )       |_ Step (2)
+     *                in                          |
+     *                    g( 4 );  <--------------|
      * 
      * Another example for practice:
      * 
-     *        [ BEFORE ]
-     *        let recFunc = function(x)
-     *            if (x >= 0)
-     *            then 0.5 * recFunc(1 - x)
-     *            else 20 * recFunc(0 - x)
-     *        in 
-     *            recFunc( -25 )
+     *   [ BEFORE ]
+     *   let recFunc = function(x)
+     *       if (x >= 0)
+     *       then 0.5 * recFunc(1 - x)
+     *       else 20 * recFunc(0 - x)
+     *   in 
+     *       recFunc( -25 )
      * 
-     *        [ AFTER ]
-     *        let recFunc = function(f)
-     *                        function(n)
-     *                          if (n >= 0)
-     *                          then 0.5 * f(f)(1 - n)
-     *                          else 20 * f(f)(0 - n)
-     *                      in
-     *                        let g = function(n)
-     *                          recFunc( recFunc )( n )
-     *                        in 
-     *                          g( -25 )
+     *   [ AFTER ]
+     *   let recFunc = function(f)
+     *                   function(n)
+     *                     if (n >= 0)
+     *                     then 0.5 * f(f)(1 - n)
+     *                     else 20 * f(f)(0 - n)
+     *                 in
+     *                   let g = function(n)
+     *                     recFunc( recFunc )( n )
+     *                   in 
+     *                     g( -25 )
      */
     /* --------------------------------------------------------------- */
     val e8 =  LetRec("fact", "n", 
-              IfThenElse(Eq(Ident("n"), Const(0)), Const(1), 
-                        Mult(Ident("n"), FunCall(Ident("fact"), Minus(Ident("n"), Const(1))))
-                        ),
-              FunCall(Ident("fact"), Const(7))
+                IfThenElse(Eq(Ident("n"), Const(0)), Const(1), 
+                          Mult(Ident("n"), FunCall(Ident("fact"), Minus(Ident("n"), Const(1))))
+                          ),
+                FunCall(Ident("fact"), Const(7))
               )
-
-    val fact_rec_8 = TopLevel( e7 );
-
-    val program_8 = TopLevel( removeRecur(e7) );
+    val program_8 = TopLevel( removeRecur(e8) );
     val ret_8 : Value = evalProgram( program_8 );
     println( s"program_8 evaluated: ${ valConvert( ret_8 ) }" );
+    /* --------------------------------------------------------------- */
 
+    /**
+     * Handle recursion by writing an interpreter that handles recursion
+     * 
+     * (1) Non recursive functions are handled as so:
+     * 
+     *                  let f = function(x)
+     *                     <func body expr>
+     *                  in
+     *                    <def expr>
+     *
+     *    Without recursion, we evaluate the func body expr to a closure:
+     * 
+     *              Closure( x, <func body expr>, 𝜎 )
+     *    
+     *    Cannot occur in recursion because we execute a recursive call to
+     *    'f' in <func body expr> which is not-yet defined in 𝜎.
+     * 
+     * (2) Strategy: Extend 𝜎 into a new environment 𝜎*
+     *    
+     *      𝜎*(x) = 𝜎(x) for all identifier x ≠ 𝑓
+     *      𝜎*(𝑓) = Closure( x, <func body expr>, 𝜎* )
+     * 
+     *    𝜎* defines function 'f' as a closure with the environment of the
+     *    closure as 𝜎*. This allows 'f' to be called in the <func_body_expr>
+     *    because the environment 𝜎* is the same body 𝜎* before 'f' is defined. 
+     *    There is no environment extension 𝜎[x ↦ v] required.
+     * 
+     * Environments:
+     * ---------------
+     * 
+     * Rule for handling function definitions for static typing:
+     * 
+     *    ------------------------------------------------- (func def)
+     *      eval(FuncDef(x, e), 𝜎) = Closure( x, e, 𝜎 )
+     * 
+     * Rule for handling function calls:
+     * 
+     *   eval(f-exp,𝜎)=Closure(p,e,𝜋),eval(arg-exp, 𝜎)=v2, v2!= error 
+     *  -------------------------------------------------------------- (func call)
+     *     eval(FuncCall(f-exp, arg-exp), 𝜎) = eval(e, 𝜋[p ↦ v2])
+     * 
+     * When calling a function, we must have evaluated the function definition
+     * to a closure( p,e,𝜋 ), and evaluate the function argument. Then, during
+     * the function call, we evaluate the function body by extending the closed
+     * environment to include a mapping between the format parameter 'p' and the
+     * function argument 'v2': 𝜋[p ↦ v2]
+     * 
+     * 
+     * How to support recursion:
+     * ---------------------------
+     * (1) Define the empty environment: EmptyEnv
+     * (2) Define extending the environment: Extend
+     * (3) Define extending the environment with recursion: ExtendRec
+     * 
+     *    Extend     : Environment 𝜎 is extended 𝜎[x ↦ v] by Extend(𝜎, x, v)
+     *    
+     *    ExtendRec  : Create new environment 𝜎* s.t. 𝜎*(x) = 𝜎(x) for all 
+     *                 identifiers x ≠ 𝑓 and Closure( x, <func body expr>, 𝜎* )
+     * 
+     * See: modifications to 'eval', and new case classes that implement this. 
+     */
+    val program_9 = TopLevel(
+                        LetRec("fact", "n", 
+                              IfThenElse(Eq(Ident("n"), Const(0)), Const(1), 
+                                        Mult(Ident("n"), FunCall(Ident("fact"), Minus(Ident("n"), Const(1))))
+                                        ),
+                              FunCall(Ident("fact"), Const(4))
+                              ) 
+                        )
+    val ret_9 : Value = evalProgram( program_9 );
+    println( s"program_9 evaluated: ${ valConvert( ret_9 ) }" );
   }
 }
