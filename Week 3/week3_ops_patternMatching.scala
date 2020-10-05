@@ -154,7 +154,8 @@ object patternMatching {
         case Cons( _, Nil ) => return true; // Single element is in ascending order
 
         case Cons( j1, tl @ Cons( j2, _ ) ) => {
-
+            println( s"Printing tl: $tl" );
+            println( tl );
             if ( j1 <= j2 ) {
 
                 return isAscendingOrder( tl );
