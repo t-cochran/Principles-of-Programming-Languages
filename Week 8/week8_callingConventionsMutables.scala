@@ -133,64 +133,79 @@ object EvalExpr {
       /* Identifiers: Mapped to either val or var */
       case Ident(x) =>
         if (env contains x) {
-          val v = env(x)  // Get Value mapped to the identifier (e.g. x = ?? )
+          val v = env(x)  // Get Value mapped to the identifier
           v match {
             case Reference(j) => // Var: De-reference by looking up address 'j' in memory store
               val v1 = MemoryOp.lookupCellValue(store, j)
               (v1, store)
-            case _ => (v, store) // Val
+            case _ => (v, store) // Val: Return the val mapped to the identifier
           }
         } else
           throw new IllegalArgumentException(s"Undefined identifier $x")
 
+      /* Binary operations */
       case Plus(e1, e2) => binaryOp(e1, e2)(_ + _)
       case Minus(e1, e2) => binaryOp(e1, e2)(_ - _)
       case Mult(e1, e2) => binaryOp(e1, e2)(_ * _)
       case Geq(e1, e2) => boolOp(e1, e2)(_ >= _)
       case Eq(e1, e2) => boolOp(e1, e2)(_ == _)
+
+      /* If/Then/Else */
       case IfThenElse(e1, e2, e3) =>
         val (v, store1) = eval(e1, env, store)
         v match {
           case BoolValue(true) => eval(e2, env, store1)
           case BoolValue(false) => eval(e3, env, store1)
-          case _ => throw new IllegalArgumentException(s"If-then-else condition expr: ${e1} is non-boolean -- evaluates to ${v}")
+          case _ => throw new IllegalArgumentException(
+            s"If-then-else condition expr: ${e1} is non-boolean -- evaluates to ${v}"
+          )
         }
+
+      /* Let Binding */
       case Let(x, e1, e2) =>
         val (v1, store1) = eval(e1, env, store) // eval e1
         val env2 = env + (ArrowAssoc(x) -> v1) // create a new extended env
-        eval(e2, env2, store1) // eval e2 under that.
-      case FunDef(x, e) =>
-        (Closure(x, e, env), store) // Return a closure with the current environment.
+        eval(e2, env2, store1) // eval e2 under the extended env
+
+      /* Function Definitions: Return the closure */
+      case FunDef(x, e) => (Closure(x, e, env), store)
+
+      /* Function Calls */
       case FunCall(e1, e2) =>
-        val (v1, store1) = eval(e1, env, store)
-        val (v2, store2) = eval(e2, env, store1)
+        val (v1, store1) = eval(e1, env, store)  // v1: Evaluate func identifier to Closure
+        val (v2, store2) = eval(e2, env, store1) // v2: Evaluate func arguments
         v1 match {
-          case Closure(x, closure_ex, closed_env) => {
-            // First extend closed_env by binding x to v2
-            val new_env = closed_env + (ArrowAssoc(x) -> v2)
-            // Evaluate the body of the closure under the extended environment.
-            eval(closure_ex, new_env, store2)
+          case Closure(param, body, closed_env) => {
+            val pi = closed_env + (ArrowAssoc(param) -> v2)  // Extend env by mapping parameter to arguments
+            eval(body, pi, store2)   // Evaluate the body of the closure under the extended environment
           }
-          case _ => throw new IllegalArgumentException(s"Function call error: expression $e1 does not evaluate to a closure")
+          case _ => throw new IllegalArgumentException(
+            s"Function call error: expression $e1 does not evaluate to a closure"
+          )
         }
-      case AssignVar(x, e) => // x is a string -- name of identifier and e is Expr -- RHS of assignment
-        val (v1, store1) = eval(e, env, store) // First evaluate e
-        val v2 = if (env contains x) // Next, check x from the current environment
+
+      /* AssignVar: Assign a new value (Expr) 'e' to var identifier (String) 'x' */
+      case AssignVar(x, e) =>
+        val (v1, store1) = eval(e, env, store) // v1: Evaluate new var expression 'e'
+        val v2 = if (env contains x) // v2: Current environment mapping of identifier 'x'
           env(x)
         else
-          throw new IllegalArgumentException(s"Undefined identifier $x") // Trying to assign to an undeclared identifier
-        v2 match {
-          case Reference(j) => // x better be a reference in the current env.
-            val store3 = MemoryOp.assignToCell(store1, j, v1) // assign to cell function in ImmutableStore API
+          throw new IllegalArgumentException(s"Undefined identifier $x")
+        v2 match {  // Match var to its Reference type
+          case Reference(j) =>
+            val store3 = MemoryOp.assignToCell(store1, j, v1) // assign expression value 'v1' to cell 'j'
             (v1, store3)
-          case _ => throw new IllegalArgumentException(s"AssignVar applied to argument that is not a mutable var")
+          case _ => throw new IllegalArgumentException(
+            s"AssignVar applied to argument that is not a mutable var"
+          )
         }
+
+      /* LetVar binding: Create a new 'var' binding */
       case LetVar(x, e1, e2) => // let var x = e1 in e2
-        // This is the same treatment as let x = NewRef(e1) in e2 in ExplicitRef Language.
-        val (v1, store1) = eval(e1, env, store) // evaluate e1
-        val (store2, j) = MemoryOp.createNewRef(store1, v1) // create a new cell corresponding to the value of e1
-        val newEnv = env + (ArrowAssoc(x) -> Reference(j)) // update the environment
-        eval(e2, newEnv, store2) // evaluated e2 with the new environment and the new store.
+        val (v1, store1) = eval(e1, env, store) // v1: eval e1
+        val (store2, j) = MemoryOp.createNewRef(store1, v1) // create a new cell containing v1
+        val newEnv = env + (ArrowAssoc(x) -> Reference(j)) // map 'x' to cell 'j' and update the environment
+        eval(e2, newEnv, store2) // evaluate e2 with the new environment and the new store containing cell 'j'
     }
   }
 }
@@ -199,8 +214,11 @@ object EvalExpr {
 object EvalProgram {
   def eval(p: Program) : Value = p match {
     case TopLevel(e) => {
-      // Start with empty environment and empty store
-      val (v1, s1) = EvalExpr.eval(e, Map(), new ImmutableStore(nCells = 0, Map()))
+      val (v1, s1) = EvalExpr.eval(
+        e, // Program expression
+        Map[String, Value](), // Empty environment
+        ImmutableStore(nCells = 0, Map[Int, Value]()) // Empty memory store
+      )
       v1
     }
   }
@@ -294,8 +312,6 @@ object Notes {
    *  Note: If accessing a struct in C/C++, passing by value requires copying the struct; better to pass by ref
    */
 
-  /* ------------------------------------------------------------------------------------------------------------- */
-
   /**
    * Mimic mutable vars in scala (e.g. implicit references, var x = 1; x = x + 1 )
    *
@@ -324,7 +340,6 @@ object Notes {
    *
    *  Note: 'let var' can be re-assigned via AssignVar( var, _ ); 'let _' cannot since it is immutable
    */
-  /* ------------------------------------------------------------------------------------------------------------- */
 
   /**
    * Abstract syntax for mutable references
@@ -352,6 +367,7 @@ object Notes {
    *
    *          ----------------------------------------------------- (constVar-mut)
    *               eval( Const( f ), 𝜎, store ) = ( f, store )
+   *  ------------------------------------------------------------------------------------------------------------
    *
    * Identifier rule:
    *
@@ -364,6 +380,7 @@ object Notes {
    *      𝜎( x )  Reference( j ) : var x under env 𝜎 evaluates to a reference to cell 'j'
    *           lookupCell( s, j ) : Memory cell 'j' in store 's' has value 'v'
    *       eval( Ident(x), 𝜎, s ) : Evaluating identifier x under env 𝜎 and store s has value v
+   *  ------------------------------------------------------------------------------------------------------------
    *
    * LetVar rule: Generate a new reference from 'let var x = e1 in e2'
    *
@@ -376,6 +393,7 @@ object Notes {
    *                      eval( e1, 𝜎, s ) : Expr 'e1' under env 𝜎, store 's' evals to 'v' with new store 's1'
    *                 createNewRef( s1, v ) : create new cell in 's1', reference cell 'j' and store 's2'
    *     eval( LetVar( x, e1, e2 ), 𝜎, s ) : eval e2 under: 𝜎[𝑥↦Reference(j)], store s2
+   *  ------------------------------------------------------------------------------------------------------------
    *
    * AssignVar rule:
    *
@@ -390,27 +408,22 @@ object Notes {
    *   assignToCell(s1, j, v) = s2 : assigning value 'v' to cell 'j' in store 's1' creates store 's2'
    *   eval(AssignVar(x, e), 𝜎, s) : under env 𝜎, store 's', var x = expr 'e' evals to 'v' in store 's2
    *  ------------------------------------------------------------------------------------------------------------
-   *
    */
   def main( args : Array[ String ] ) : Unit = {
-    /* let var x = 10 in
-    let dummy = AssignVar(x, 20) in
-        x
-        */
-    val x1 = Ident("x")
-    val e1 = Let("dummy", AssignVar("x", Const(20)), x1)
-    val e2 = LetVar("x", Const(10), e1)
-    val prog_1 = TopLevel(e2)
+    /**
+     *  let var x = 10 in
+     *      let y = AssignVar(x, 20) in
+     *          x
+     */
+    val prog_1 = TopLevel(LetVar("x", Const(10), Let("y", AssignVar("x", Const(20)), Ident("x"))))
     println(s"Result = ${EvalProgram.eval(prog_1)}")
 
-    /*~~~
-let var x = 10 in
-   let g = function (y)
-            x
-        in
-       let dummy = AssignVar(x, 20) in
-            g (dummy)
-~~~*/
+    /**
+     * let var x = 10 in
+     *    let g = function(y) { x } in
+     *      let y = AssignVar(x, 20) in
+     *        g(y)
+     */
     val g = Ident("g")
     val dummy = Ident("dummy")
     val x2 = Ident("x")
@@ -422,13 +435,13 @@ let var x = 10 in
     val prog_2 = TopLevel(e6)
     println(s"Result = ${EvalProgram.eval(prog_2)}")
 
-    /*---
-let var f = function (x) x + 10 in
-  let g = function (y) y - 5 in
-    let d = f(10) in
-       let dummy = AssignVar(f, g) in
-          d - f(10)
-          */
+    /**
+     * let var f = function(x) { x + 10 } in
+     *    let g = function(y) { y - 5 } in
+     *      let d = f(10) in
+     *        let z = AssignVar( f, g ) in
+     *          d - f( 10 )
+     */
     val d1 = Ident("d")
     val f1 = Ident("f")
     val g1 = Ident("g")
