@@ -1,5 +1,10 @@
 .vscode
 .metals
+.idea
 *.class
 tests/
 **/scratch.scala
+**/Makefile
+src/
+target/
+project*/
