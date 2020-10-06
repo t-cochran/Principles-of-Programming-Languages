@@ -4,29 +4,26 @@
  * General Notes:
  *
  *    (1) Function parameters are immutable in scala.
+ *
  *    (2) Immutable instances passed as parameters by reference can mutable fields.
- *    (3) var is a pointer to a memory cell, val is an evaluated value
+ *
+ *    (3) var is a pointer to a memory cell, val is an evaluated value.
+ *
+ *    (4) Call by value: function argument is fully evaluated, then the value is passed to the function call.
+ *
+ *     Funcall( Ident, args )                      // Call function with Ident 'f'
+ *           eval( Ident, σ ) => Ident: 'f'        // Evaluate the function identifier
+ *           { f -> Closure( param, body, σ ) }    // Get the closure mapped to the function identifier
+ *           π = σ + ( param -> args )             // Map the Closure parameter to the evaluated function args
+ *           eval( body, π )                       // Evaluate the body of the function with arg mapping
+ * ------------------------------------------------------------------------------------------------------------
+ *
+ *
+ *
  *
  */
 
 /**
- * Call by value:
- *    func(arg) the arg is fully evaluated, then the value is passed to the function call.
- *  ------------------------------------------------------------------------------------------------------------
- *    Let x = 10 in
- *      Let f = function(z) { 2 * z } in
- *          f( x + 20 )
- *
- *    Recall:
- *      Funcall( Ident, args )                         // Call function with Ident: 'f', args: 30
- *            eval( Ident, σ ) => Ident: 'f'           // Evaluate the function identifier, get Closure
- *            { f -> Closure( param, body, σ ) }
- *            π = σ + ( param -> args )                // Map Closure parameter to function arg: 30
- *            eval( body, π )                          // Evaluate the body of the function with arg mapping
- *
- *    (1) Evaluate 'arg' x + 20  => env: { x -> 10 }, so arg = 30, map parameter to arg: {z -> 30}
- *    (2) Call the function 'f' on the value of arg = 30 function(z = 30) { 2 * z } evals to 60
- *  ------------------------------------------------------------------------------------------------------------
  *       NewRef : Create a new explicit memory reference 'x'
  *       DeRef  : De-reference to get the value 'x'
  *    AssignRef : Assign a value to a reference '( x, val )'
