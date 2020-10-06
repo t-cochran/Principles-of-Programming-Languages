@@ -1,10 +1,286 @@
-/** 
+/**
  * File: week8_callingConventionsMutable.scala
  *
- * Working through the material on mutable and calling conventions
+ * Function parameters are immutable in scala.
+ *
+ *    case class Wrapper( var x : Int )  // x is a mutable field
+ *    def bar_2( z : Wrapper ) : Int = {
+ *        z.x = 25   // re-assign the mutable field 'x'
+ *        2 * z.x
+ *    }
+ *
+ * In 'Wrapper', 'x' is a mutable field. The mutable field of the immutable instance can be changed
+ * in a function. In this case, you are changing mutable values held by the reference and not the
+ * reference itself which is immutable.
+ *
+ * Note: In scala, 'var' is a pointer/reference to a memory cell, while 'val' is simply a value
  */
-sealed trait Program
-sealed trait Expr
+
+/**
+ * Call by value:
+ *    func(arg) the arg is fully evaluated, then the value is passed to the function call.
+ *  ------------------------------------------------------------------------------------------------------------
+ *    Let x = 10 in
+ *      Let f = function(z) { 2 * z } in
+ *          f( x + 20 )
+ *
+ *    Recall:
+ *      Funcall( Ident, args )                         // Call function with Ident: 'f', args: 30
+ *            eval( Ident, σ ) => Ident: 'f'           // Evaluate the function identifier, get Closure
+ *            { f -> Closure( param, body, σ ) }
+ *            π = σ + ( param -> args )                // Map Closure parameter to function arg: 30
+ *            eval( body, π )                          // Evaluate the body of the function with arg mapping
+ *
+ *    (1) Evaluate 'arg' x + 20  => env: { x -> 10 }, so arg = 30, map parameter to arg: {z -> 30}
+ *    (2) Call the function 'f' on the value of arg = 30 function(z = 30) { 2 * z } evals to 60
+ *  ------------------------------------------------------------------------------------------------------------
+ *       NewRef : Create a new explicit memory reference 'x'
+ *       DeRef  : De-reference to get the value 'x'
+ *    AssignRef : Assign a value to a reference '( x, val )'
+ *
+ *    Let bar = function(x)                     // Closure( param, body, σ ), π = σ + ( x -> NewRer(12) )
+ *       Let dummy1 = assignref(x, 25) in       // Eval( body, π )
+ *          2 * deref(x)
+ *    in
+ *      Let z = newRef(12) in
+ *        bar(z)                                // Funcall: Ident 'f', arg 'z -> NewRer(12)'
+ *
+ *    (1) Evaluate 'arg' z => env: { z -> newRef(12) } a reference to memory cell '0' with value '12'
+ *    (2) Call function 'bar' by mapping Closure parameter to function arg: 'param -> ref(0)', eval 'bar' body
+ *
+ *    When 'bar' evaluates the function body via 'eval( body, π )', we pass 'ref(0)' to function 'dummy1'.
+ *    'dummy1' assigns 'ref(0)' value 25, then de-references it and computes 2 * 25 = 50
+ *
+ *    Conclusion:
+ *      Pointers passed to functions can have their values mutated. The reference (memory address) is immutable,
+ *      but the value held at the address is mutable. Hence, class fields can change and referenced values can
+ *      be re-assigned.
+ * ------------------------------------------------------------------------------------------------------------
+ *  EX: Why does this program fail?
+ *
+ *        def bar( x : Int ) : Int = {
+ *            x = 25    // Parameter x is an immutable val
+ *            2 * x
+ *        }
+ *        var z = 12    // z is not a reference; it evaluates to value 12
+ *        bar( z )
+ *
+ *  The lettuce example would fail for similar reasons:
+ *
+ *    Let bar = function(x)                     // Closure( param, body, σ ), π = σ + ( x -> 12 )
+ *      Let dummy1 = assignVar(x, 25) in        // Eval( body, π )
+ *          2 * x
+ *    in
+ *      Let z = 12 in
+ *        bar(z)                                // Funcall: Ident 'f', arg 'z -> 12'
+ *
+ *    (1) Evaluate 'arg' z => env: { z -> 12 } the value '12
+ *    (2) Call function 'bar' by mapping Closure parameter to function arg: 'param -> 12', eval 'bar' body
+ *
+ *    When 'bar' evaluates the function body via 'eval( body, π )', we pass '12' to function 'dummy1'.
+ *    'dummy1' assigns '12' value '25'. This does not work because in π { param -> 12 } maps to a value.
+ *  ------------------------------------------------------------------------------------------------------------
+ *  Call by value with objects:
+ *      Double / Int : call by value is the value itself
+ *            object : call by value is a reference to object
+ *
+ *  Note: If accessing a struct in C/C++, passing by value requires copying the struct; better to pass by ref
+ */
+
+/**
+ * Mimic mutable vars in scala (e.g. implicit references, var x = 1; x = x + 1 )
+ *
+ *  Vars : References to cells in memory (pointers). Var changes "go through" scopes, so change the var at
+ *         function call time, this is reflected in the call even if static scoping occurred.
+ *
+ *  Implicit references : Don't need to use NewRef to create a reference; simply declare a var as a reference
+ *
+ *    'Let var' : A binding to specify that the bound variable will be an implicit reference.
+ *  'AssignVar' : Assign a value to a reference '( x, val )'
+ *
+ *                                    let var x = <expr> in
+ *                                        <body expr>
+ *  Examples:
+ *
+ *    let var x = 10 in                        // create a new reference, bind to x, assign it 10
+ *      let dummy = AssignVar( x, 20 ) in      // re-assign reference to 20
+ *        x                                    // de-reference to return 20
+ *
+ *    let var x = 10 in                        // create a new reference, bind to x, assign it 10
+ *        let g = function(y)                  // body is a function(y) returns x
+ *              x
+ *          in
+ *            let dummy = AssignVar( x, 20 ) in   // dummy assigns x to 20
+ *               g( dummy )                       // pass x->20 to g; call g; g returns x; therefore x = 20
+ *
+ *  Note: 'let var' can be re-assigned via AssignVar( var, _ ); 'let _' cannot since it is immutable
+ */
+
+/**
+ * Abstract syntax for mutable references
+ *
+ * Expr -> LetVar( Ident, Expr, Expr )
+ *       | AssignVar( Ident, Expr )
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Operational semantics: How to evaluate implicit references?
+ *    (1) Make a new value type for references, like we did for function definitions (Closures)
+ *          -> Now 'Expr' will eval() to: NumVal, BoolVal, Closure, Reference
+ *          -> Reference( j ) references a cell number 'j' in the store
+ *    (2) Define an abstract notion of memory called: 'store'
+ *
+ *    eval( expr, env ) = ( value, new-env )
+ *       - Immutable values ( let ... ) are bound to values in the environment
+ *
+ *    eval( expr, env, store ) = ( value, new-store )
+ *        - Mutable values (let var ... ) are about to 'Reference( j )' where 'j' is an address in 'store'
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Stores: memory addresses of natural numbers (0, 1, 2...)
+ *
+ * Constant rule:
+ *
+ *          ----------------------------------------------------- (constVar-mut)
+ *               eval( Const( f ), 𝜎, store ) = ( f, store )
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Identifier rule:
+ *
+ *      lookupCellValue : Given cell 'j' in memory store 's', return value in the cell 'v'
+ *
+ *            x ∈ 𝜎, 𝜎( x ) = Reference( j ), lookupCell( s, j ) = v
+ *          ---------------------------------------------------------- (identVar-mut)
+ *                     eval( Ident(x), 𝜎, s ) = ( v, s )
+ *
+ *       𝜎( x )  Reference( j ) : var x under env 𝜎 evaluates to a reference to cell 'j'
+ *           lookupCell( s, j ) : Memory cell of address 'j' in store 's' has value 'v'
+ *       eval( Ident(x), 𝜎, s ) : Evaluating identifier x under env 𝜎 and store s has value v
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * DeRef rule:
+ *
+ *      lookupCellValue : Given a memory reference 'Reference( j )', return its value 'v'
+ *
+ *            eval( e, 𝜎, s ) = ( r, s1 ), r = Reference( j ), lookupCell( s1, j ) = v
+ *          ----------------------------------------------------------------------------- (DeRef)
+ *                            eval( Deref( e ), 𝜎, s ) = ( v, s1 )
+ *
+ *                eval( e, 𝜎, s ) : Expr 'e' under env 𝜎 store 's' evaluates to reference 'r' of store 's1'
+ *            lookupCell( s1, j ) : Evaluating identifier x under env 𝜎 and store s has value v
+ *       eval( Deref( e ), 𝜎, s ) : De-referencing expression 'e' under env 𝜎, store s, yields value v
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * LetVar rule: Generate a new reference from 'let var x = e1 in e2'
+ *
+ *      createNewRef : Create new cell 'j' in store 's1' and assign it value 'v', return updated store 's2'
+ *
+ *         eval( e1, 𝜎, s ) = ( v, s1 ), v ≠ error, createNewRef( s1, v ) = ( j, s2 )
+ *       ------------------------------------------------------------------------------- (letVar-mut)
+ *        eval( LetVar( x, e1, e2 ), 𝜎, s ) = eval( e2, 𝜎[ x -> Reference( j ) ], s2 )
+ *
+ *                      eval( e1, 𝜎, s ) : Expr 'e1', under env 𝜎, store 's', evals to 'v' with new store 's1'
+ *                 createNewRef( s1, v ) : create new cell in store 's1', with address 'j' and store 's2'
+ *     eval( LetVar( x, e1, e2 ), 𝜎, s ) : eval e2 under: 𝜎[𝑥↦Reference(j)], store s2
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ *  NewRef rule : Generate a new reference from 'NewRef(e)' containing value 'v' eval'd from 'e'
+ *
+ *      createNewRef : Create new cell 'j' in store 's1' and assign it value 'v', return updated store 's2'
+ *
+ *         eval( e, 𝜎, s ) = ( v, s1 ), v ≠ error, createNewRef( s1, v ) = ( j, s2 )
+ *       ------------------------------------------------------------------------------- (NewRef)
+ *                    eval( NewRef( e ), 𝜎, s ) = ( Reference( j ), s2 )
+ *
+ *               eval( e1, 𝜎, s ) : Expr 'e', under env 𝜎, store 's', evals to 'v' with new store 's1'
+ *          createNewRef( s1, v ) : create new cell in store 's1', with address 'j' and store 's2'
+ *      eval( NewRef( e ), 𝜎, s ) : eval NewRef results in a reference to the new cell 'j' in store 's2'
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * AssignVar rule:
+ *
+ *      assignToCell : Assign a new value 'v' to cell 'j', return updated memory store 's2'
+ *
+ *        x ∈ 𝜎, 𝜎(x) = Reference(j), eval(e, 𝜎, s) = (v, s1), assignToCell(s1, j, v) = s2
+ *       ------------------------------------------------------------------------------------- (assignVar-mut)
+ *                          eval(AssignVar(x, e), 𝜎, s) = (v, s2)
+ *
+ *           𝜎(x) = Reference(j) : var x under env 𝜎 maps to a reference to cell 'j'
+ *                 eval(e, 𝜎, s) : Expr 'e' under env 𝜎 store 's' evaluates to value 'v' with new store 's1'
+ *   assignToCell(s1, j, v) = s2 : assigning value 'v' to cell 'j' in store 's1' creates store 's2'
+ *   eval(AssignVar(x, e), 𝜎, s) : under env 𝜎, store 's', var x = expr 'e' evals to 'v' in store 's2
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * AssignRef rule:
+ *
+ *      assignToCell : Assign a new value 'v' to cell 'j', return updated memory store 's3'
+ *
+ *      eval( e, 𝜎, s ) = ( r, s1 ), r = Reference(j), eval(e2, 𝜎, s1) = (v2, s2), assignToCell(s2, j, v2) = s3
+ *       -------------------------------------------------------------------------------------------------- (AssignRef)
+ *                          eval(AssignRef(e1, e2), 𝜎, s) = (v2, s3)
+ *
+ *              𝜎(x) = Reference(j) : var x under env 𝜎 maps to a reference to cell 'j'
+ *                    eval(e, 𝜎, s) : Expr 'e' under env 𝜎 store 's' evaluates to reference 'r' of store 's1'
+ *     assignToCell(s2, j, v2) = s2 : assigning value 'v2' from e2, to cell address 'j' from reference e1
+ *    eval(AssignRef(e1, e2), 𝜎, s) : under env 𝜎, store 's', reference e1 is assigned value from expr 'e2'
+ *  ------------------------------------------------------------------------------------------------------------
+ */
+
+/**
+ * Side Effects: Program actions that have a global effect on the computation.
+ *
+ *     (1) vars: the effect of statements can change before and after var re-assignment
+ *
+ *     (2) printing, opening/reading a file, acquiring a mutex lock
+ *
+ *     (3) create new cells in memory, change the value of cells
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Mutable References: addresses to locations in memory that hold a value
+ *
+ *     (1) memory cells: 0, 1, 2, 3.. hold a type Value ( NumValue, Closure, FunDef ... )
+ *
+ * EX:
+ *    let x = NewRef(10) in
+ *        let y = DeRef(x) + 1 in
+ *            let z = AssignRef(x, y) in    // Value assigned to ref 'x' from 'y' is returned to 'z'
+ *                z
+ *    Out: 11
+ *    (1) x bound to cell j=0, val 10;
+ *    (2) y = 10 + 1
+ *    (3) z = 11 since x at j=0, val 10 -> val y = 11
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Operational semantics with side effects:
+ *
+ *    (1) Evaluating expressions will now have the form: eval( e, env, store ) = ( value, new-store )
+ *
+ *         eval(e: Expr, env: Map[String, Value], store: ImmutableStore): (Value, ImmutableStore)
+ *
+ *        Previously, eval just had the expression 'e' and environment 'env'. Now, we must pass the
+ *        memory store. Previously, we returned a Value from eval, but now we must return a Value
+ *        and the new memory store.
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Plus rule: Minus, Mult, Geq, Eq are very similar to this
+ *
+ *              eval(e1, 𝜎, s) = (v1, s1), v1 ∈ ℝ, eval(e2, 𝜎, s1) = (v2, s2), v2 ∈ ℝ
+ *       ------------------------------------------------------------------------------------- (assignVar-mut)
+ *                          eval(Plus(e1, e2), 𝜎, s) = (v1 + v2, s2)
+ *
+ *             eval(e1, 𝜎, s) : Eval e1 under env 𝜎 and store s yields v1 with new store s1
+ *            eval(e2, 𝜎, s1) : Eval e2 under env 𝜎 and store s1 since [[ an e1 side effect could have updated s1 ]]
+ *  ------------------------------------------------------------------------------------------------------------
+ *
+ * Funcation Calls: Eval the funcIdent (closure), eval the funcArgs, eval funcBody from closure given args mapped
+ *                  to parameter (same stuff). Ensure s2 is used since [[ eval arguments can create side effects ]]
+ *
+ *           eval(e1, 𝜎, s) = (Closure(x, body, 𝜋), s1), eval(e2, 𝜎, s1) = (v, s2), v ≠ error
+ *         ------------------------------------------------------------------------------------- (assignVar-mut)
+ *                            eval(Plus(e1, e2), 𝜎, s) = (v1 + v2, s2)
+ *  ------------------------------------------------------------------------------------------------------------
+ */
+trait Program
+trait Expr
 case class TopLevel(e: Expr) extends Program
 case class Const(v: Double) extends Expr
 case class Ident(s: String) extends Expr
@@ -18,43 +294,23 @@ case class Let(s: String, defExpr: Expr, bodyExpr: Expr) extends Expr
 case class FunDef(param: String, bodyExpr: Expr) extends Expr
 case class FunCall(funCalled: Expr, argExpr: Expr) extends Expr
 
-case class LetVar(x: String, e1: Expr, e2: Expr) extends Expr
-case class AssignVar(x: String, e: Expr) extends Expr
+case class LetVar(x: String, e1: Expr, e2: Expr) extends Expr  // Create a new 'var' binding
+case class AssignVar(x: String, v: Expr) extends Expr  // Assign a new value 'v' to var identifier 'x'
+
+case class NewRef(v: Expr) extends Expr  // Create a new reference with value 'v'
+case class DeRef(ref: Expr) extends Expr  // Return the value of reference 'ref'
+case class AssignRef(ref: Expr, v: Expr) extends Expr // Assign reference ref the value e2
 /* ------------------------------------------------------------------------------------------------------------- */
 
-sealed trait Value
+trait Value
 case class NumValue(f: Double) extends Value
 case class BoolValue(b: Boolean) extends Value
 case class Closure(x: String, e: Expr, pi: Map[String, Value]) extends Value
 case object ErrorValue extends Value
 
 case class ImmutableStore( nCells: Int, storeMap: Map[Int, Value] )
+case class ExplicitRef(j: Int) extends Value
 case class Reference(j: Int) extends Value
-/* ------------------------------------------------------------------------------------------------------------- */
-
-object TypeConvert {
-  /**
-   *  Given type Value return type Double
-   */
-  def valueToNumber( v: Value ): Double = v match {
-    case NumValue(d) => d
-    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a number")
-  }
-  /**
-   *  Given type Value return type Boolean
-   */
-  def valueToBoolean(v: Value): Boolean = v match {
-    case BoolValue(b) => b
-    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a boolean")
-  }
-  /**
-   *  Given type Value return type Closure
-   */
-  def valueToClosure(v: Value): Closure = v match {
-    case Closure(x, e, pi) => Closure(x, e, pi)
-    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a closure")
-  }
-}
 /* ------------------------------------------------------------------------------------------------------------- */
 
 object MemoryOp {
@@ -97,6 +353,31 @@ object MemoryOp {
 }
 /* ------------------------------------------------------------------------------------------------------------- */
 
+object TypeConvert {
+  /**
+   *  Given type Value return type Double
+   */
+  def valueToNumber( v: Value ): Double = v match {
+    case NumValue(d) => d
+    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a number")
+  }
+  /**
+   *  Given type Value return type Boolean
+   */
+  def valueToBoolean(v: Value): Boolean = v match {
+    case BoolValue(b) => b
+    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a boolean")
+  }
+  /**
+   *  Given type Value return type Closure
+   */
+  def valueToClosure(v: Value): Closure = v match {
+    case Closure(x, e, pi) => Closure(x, e, pi)
+    case _ => throw new IllegalArgumentException(s"Error: Convert v: $v to a closure")
+  }
+}
+/* ------------------------------------------------------------------------------------------------------------- */
+
 /**
  *  Evaluate expression 'e' in environment 'env' and memory store 'store'
  *
@@ -135,6 +416,7 @@ object EvalExpr {
         if (env contains x) {
           val v = env(x)  // Get Value mapped to the identifier
           v match {
+            case ExplicitRef(j) => (v, store)  // Exlicit reference created by NewRef
             case Reference(j) => // Var: De-reference by looking up address 'j' in memory store
               val v1 = MemoryOp.lookupCellValue(store, j)
               (v1, store)
@@ -184,6 +466,42 @@ object EvalExpr {
           )
         }
 
+      /* NewRef: Create a new reference to the value from expr 'e' */
+      case NewRef(e) => {
+        val (v, store1) = eval(e, env, store)
+        val (store2, j) = MemoryOp.createNewRef(store1, v)  // Create new reference of value 'v'
+        (ExplicitRef(j), store2)
+      }
+
+      /* DeRef: Given expr 'e' = Reference(j), get value 'v' */
+      case DeRef(e) => {
+        val (v, store1) = eval(e, env, store)  // eval 'e' to get Reference(j)
+        v match {
+          case ExplicitRef(j) => {
+            val v = MemoryOp.lookupCellValue(store1, j)  // Get value mapped to cell 'j' in store1
+            (v, store1)
+          }
+          case _ => throw new IllegalArgumentException(
+            s"Deref applied to an expr: $e val: $v that does not evaluate to a reference"
+          )
+        }
+      }
+
+      /* AssignRef: Given expr 'e2' = Reference(j), assign value 'e2' = v2 to store 'j' */
+      case AssignRef(e1, e2) => {
+        val (v1, store1) = eval(e1, env, store)  // eval 'e' to get Reference(j)
+        v1 match {
+          case ExplicitRef(j) => {
+            val (v2, store2) = eval(e2, env, store1)  // eval 'e2' to get 'v2'
+            val store3 = MemoryOp.assignToCell(store2, j, v2)  // map '
+            (v2, store3)
+          }
+          case _ => throw new IllegalArgumentException(
+            s"AssignRef applied to argument that is not a reference"
+          )
+        }
+      }
+
       /* AssignVar: Assign a new value (Expr) 'e' to var identifier (String) 'x' */
       case AssignVar(x, e) =>
         val (v1, store1) = eval(e, env, store) // v1: Evaluate new var expression 'e'
@@ -213,203 +531,35 @@ object EvalExpr {
 
 object EvalProgram {
   def eval(p: Program) : Value = p match {
-    case TopLevel(e) => {
+    case TopLevel(e) =>
       val (v1, s1) = EvalExpr.eval(
         e, // Program expression
         Map[String, Value](), // Empty environment
         ImmutableStore(nCells = 0, Map[Int, Value]()) // Empty memory store
       )
       v1
-    }
   }
 }
 /* ------------------------------------------------------------------------------------------------------------- */
 
-object Notes {
-  /**
-   * Function parameters are immutable in scala.
-   *
-   * In 'Wrapper', 'x' is a mutable field. The mutable field of the immutable instance can be changed
-   * in a function. In this case, you are changing mutable values held by the reference and not the
-   * reference itself which is immutable.
-   *
-   * Note: In scala, 'var' is a pointer/reference to a memory cell, while 'val' is simply a value
-   */
-  case class Wrapper( var x : Int )  // x is a mutable field
-  def bar_2( z : Wrapper ) : Int = {
-    z.x = 25   // re-assign the mutable field 'x'
-    2 * z.x
-  }
-
-  /**
-   * Call by value:
-   *    func(arg) the arg is fully evaluated, then the value is passed to the function call.
-   *  ------------------------------------------------------------------------------------------------------------
-   *    Let x = 10 in
-   *      Let f = function(z) { 2 * z } in
-   *          f( x + 20 )
-   *
-   *    Recall:
-   *      Funcall( Ident, args )                         // Call function with Ident: 'f', args: 30
-   *            eval( Ident, σ ) => Ident: 'f'           // Evaluate the function identifier, get Closure
-   *            { f -> Closure( param, body, σ ) }
-   *            π = σ + ( param -> args )                // Map Closure parameter to function arg: 30
-   *            eval( body, π )                          // Evaluate the body of the function with arg mapping
-   *
-   *    (1) Evaluate 'arg' x + 20  => env: { x -> 10 }, so arg = 30, map parameter to arg: {z -> 30}
-   *    (2) Call the function 'f' on the value of arg = 30 function(z = 30) { 2 * z } evals to 60
-   *  ------------------------------------------------------------------------------------------------------------
-   *       NewRef : Create a new explicit memory reference 'x'
-   *       DeRef  : De-reference to get the value 'x'
-   *    AssignRef : Assign a value to a reference '( x, val )'
-   *
-   *    Let bar = function(x)                     // Closure( param, body, σ ), π = σ + ( x -> NewRer(12) )
-   *       Let dummy1 = assignref(x, 25) in       // Eval( body, π )
-   *          2 * deref(x)
-   *    in
-   *      Let z = newRef(12) in
-   *        bar(z)                                // Funcall: Ident 'f', arg 'z -> NewRer(12)'
-   * 
-   *    (1) Evaluate 'arg' z => env: { z -> newRef(12) } a reference to memory cell '0' with value '12'
-   *    (2) Call function 'bar' by mapping Closure parameter to function arg: 'param -> ref(0)', eval 'bar' body
-   *
-   *    When 'bar' evaluates the function body via 'eval( body, π )', we pass 'ref(0)' to function 'dummy1'.
-   *    'dummy1' assigns 'ref(0)' value 25, then de-references it and computes 2 * 25 = 50
-   *
-   *    Conclusion:
-   *      Pointers passed to functions can have their values mutated. The reference (memory address) is immutable,
-   *      but the value held at the address is mutable. Hence, class fields can change and referenced values can
-   *      be re-assigned.
-   * ------------------------------------------------------------------------------------------------------------
-   *  EX: Why does this program fail?
-   *
-   *        def bar( x : Int ) : Int = {
-   *            x = 25    // Parameter x is an immutable val
-   *            2 * x
-   *        }
-   *        var z = 12    // z is not a reference; it evaluates to value 12
-   *        bar( z )
-   *
-   *  The lettuce example would fail for similar reasons:
-   *
-   *    Let bar = function(x)                     // Closure( param, body, σ ), π = σ + ( x -> 12 )
-   *      Let dummy1 = assignVar(x, 25) in        // Eval( body, π )
-   *          2 * x
-   *    in
-   *      Let z = 12 in
-   *        bar(z)                                // Funcall: Ident 'f', arg 'z -> 12'
-   *
-   *    (1) Evaluate 'arg' z => env: { z -> 12 } the value '12
-   *    (2) Call function 'bar' by mapping Closure parameter to function arg: 'param -> 12', eval 'bar' body
-   *
-   *    When 'bar' evaluates the function body via 'eval( body, π )', we pass '12' to function 'dummy1'.
-   *    'dummy1' assigns '12' value '25'. This does not work because in π { param -> 12 } maps to a value.
-   *  ------------------------------------------------------------------------------------------------------------
-   *  Call by value with objects:
-   *      Double / Int : call by value is the value itself
-   *            object : call by value is a reference to object
-   *
-   *  Note: If accessing a struct in C/C++, passing by value requires copying the struct; better to pass by ref
-   */
-
-  /**
-   * Mimic mutable vars in scala (e.g. implicit references, var x = 1; x = x + 1 )
-   *
-   *  Vars : References to cells in memory (pointers). Var changes "go through" scopes, so change the var at
-   *         function call time, this is reflected in the call even if static scoping occurred.
-   *
-   *  Implicit references : Don't need to use NewRef to create a reference; simply declare a var as a reference
-   *
-   *    'Let var' : A binding to specify that the bound variable will be an implicit reference.
-   *  'AssignVar' : Assign a value to a reference '( x, val )'
-   *
-   *                                    let var x = <expr> in
-   *                                        <body expr>
-   *  Examples:
-   *
-   *    let var x = 10 in                        // create a new reference, bind to x, assign it 10
-   *      let dummy = AssignVar( x, 20 ) in      // re-assign reference to 20
-   *        x                                    // de-reference to return 20
-   *
-   *    let var x = 10 in                        // create a new reference, bind to x, assign it 10
-   *        let g = function(y)                  // body is a function(y) returns x
-   *              x
-   *          in
-   *            let dummy = AssignVar( x, 20 ) in   // dummy assigns x to 20
-   *               g( dummy )                       // pass x->20 to g; call g; g returns x; therefore x = 20
-   *
-   *  Note: 'let var' can be re-assigned via AssignVar( var, _ ); 'let _' cannot since it is immutable
-   */
-
-  /**
-   * Abstract syntax for mutable references
-   *
-   * Expr -> LetVar( Ident, Expr, Expr )
-   *       | AssignVar( Ident, Expr )
-   *  ------------------------------------------------------------------------------------------------------------
-   *
-   * Operational semantics: How to evaluate implicit references?
-   *    (1) Make a new value type for references, like we did for function definitions (Closures)
-   *          -> Now 'Expr' will eval() to: NumVal, BoolVal, Closure, Reference
-   *          -> Reference( j ) references a cell number 'j' in the store
-   *    (2) Define an abstract notion of memory called: 'store'
-   *
-   *    eval( expr, env ) = ( value, new-env )
-   *       - Immutable values ( let ... ) are bound to values in the environment
-   *
-   *    eval( expr, env, store ) = ( value, new-store )
-   *        - Mutable values (let var ... ) are about to 'Reference( j )' where 'j' is an address in 'store'
-   *  ------------------------------------------------------------------------------------------------------------
-   *
-   * Stores: memory addresses of natural numbers (0, 1, 2...)
-   *
-   * Constant rule:
-   *
-   *          ----------------------------------------------------- (constVar-mut)
-   *               eval( Const( f ), 𝜎, store ) = ( f, store )
-   *  ------------------------------------------------------------------------------------------------------------
-   *
-   * Identifier rule:
-   *
-   *      lookupCellValue : Given cell 'j' in memory store 's', return value in the cell 'v'
-   *
-   *            x ∈ 𝜎, 𝜎( x ) = Reference( j ), lookupCell( s, j ) = v
-   *          ---------------------------------------------------------- (identVar-mut)
-   *                     eval( Ident(x), 𝜎, s ) = ( v, s )
-   *
-   *      𝜎( x )  Reference( j ) : var x under env 𝜎 evaluates to a reference to cell 'j'
-   *           lookupCell( s, j ) : Memory cell 'j' in store 's' has value 'v'
-   *       eval( Ident(x), 𝜎, s ) : Evaluating identifier x under env 𝜎 and store s has value v
-   *  ------------------------------------------------------------------------------------------------------------
-   *
-   * LetVar rule: Generate a new reference from 'let var x = e1 in e2'
-   *
-   *      createNewRef : Create new cell 'j' in store 's1' and assign it value 'v', return updated store 's2'
-   *
-   *         eval( e1, 𝜎, s ) = ( v, s1 ), v ≠ error, createNewRef( s1, v ) = ( j, s2 )
-   *       ------------------------------------------------------------------------------- (letVar-mut)
-   *        eval( LetVar( x, e1, e2 ), 𝜎, s ) = eval( e2, 𝜎[ x -> Reference( j ) ], s2 )
-   *
-   *                      eval( e1, 𝜎, s ) : Expr 'e1' under env 𝜎, store 's' evals to 'v' with new store 's1'
-   *                 createNewRef( s1, v ) : create new cell in 's1', reference cell 'j' and store 's2'
-   *     eval( LetVar( x, e1, e2 ), 𝜎, s ) : eval e2 under: 𝜎[𝑥↦Reference(j)], store s2
-   *  ------------------------------------------------------------------------------------------------------------
-   *
-   * AssignVar rule:
-   *
-   *      assignToCell : Assign a new value 'v' to cell 'j', return updated memory store 's2'
-   *
-   *        x ∈ 𝜎, 𝜎(x) = Reference(j), eval(e, 𝜎, s) = (v, s1), assignToCell(s1, j, v) = s2
-   *       ------------------------------------------------------------------------------------- (assignVar-mut)
-   *                          eval(AssignVar(x, e), 𝜎, s) = (v, s2)
-   *
-   *    𝜎(x) = Reference(j) : var x under env 𝜎 maps to a reference to cell 'j'
-   *          eval(e, 𝜎, s) : Expr 'e' under env 𝜎 store 's' evaluates to value 'v' with new store 's1'
-   *   assignToCell(s1, j, v) = s2 : assigning value 'v' to cell 'j' in store 's1' creates store 's2'
-   *   eval(AssignVar(x, e), 𝜎, s) : under env 𝜎, store 's', var x = expr 'e' evals to 'v' in store 's2
-   *  ------------------------------------------------------------------------------------------------------------
-   */
+object mutableNotes {
   def main( args : Array[ String ] ) : Unit = {
+    /**
+     *  let x = NewRef(10) in
+     *      let y = DeRef(x) + 1 in
+     *          let z = AssignRef(x, y) in
+     *              z
+     */
+    val prog_0 = TopLevel(
+      Let( "x", NewRef(Const(10.0)),
+        Let("y", Plus(Const(1.0), DeRef(Ident("x"))),
+          Let("z", AssignRef(Ident("x"), Ident("y")),
+            Ident("z")
+          )
+        )
+      )
+    )
+    println(s"Result1: ${EvalProgram.eval(prog_0)}")
     /**
      *  let var x = 10 in
      *      let y = AssignVar(x, 20) in
