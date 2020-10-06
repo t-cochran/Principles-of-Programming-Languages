@@ -1,19 +1,12 @@
 /**
  * File: week8_callingConventionsMutable.scala
  *
- * Function parameters are immutable in scala.
+ * General Notes:
  *
- *    case class Wrapper( var x : Int )  // x is a mutable field
- *    def bar_2( z : Wrapper ) : Int = {
- *        z.x = 25   // re-assign the mutable field 'x'
- *        2 * z.x
- *    }
+ *    (1) Function parameters are immutable in scala.
+ *    (2) Immutable instances passed as parameters by reference can mutable fields.
+ *    (3) var is a pointer to a memory cell, val is an evaluated value
  *
- * In 'Wrapper', 'x' is a mutable field. The mutable field of the immutable instance can be changed
- * in a function. In this case, you are changing mutable values held by the reference and not the
- * reference itself which is immutable.
- *
- * Note: In scala, 'var' is a pointer/reference to a memory cell, while 'val' is simply a value
  */
 
 /**
