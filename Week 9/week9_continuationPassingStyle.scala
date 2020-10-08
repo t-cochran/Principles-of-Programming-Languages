@@ -92,11 +92,80 @@ object TailRecReview {
   }
 }
 /* -------------------------------------------------------------------------------------------------------------- */
-
+object ContinuationPassing {
+  // Example 1 -- Not continuation passing style
+  def add( x : Int, y : Int, z : Int ) : Int = {
+    x + y + z
+  }
+  def mult( x : Int, y : Int ) : Int = {
+    x * y
+  }
+  def multAdd( x : Int, y : Int, z : Int ) : Int = {
+    add( mult( x, y ), y, z )  // (1) mult x*y (2) add the result to y + z
+  }
+  // Example 1 -- Continuation passing style
+  def addK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
+    k( x + y + z )
+  }
+  def multK( x : Int, y : Int, k : Int => Int ) : Int = {
+    k( x * y )
+  }
+  def multAddK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
+    def k1( v1 : Int ) : Int = {  // Continuation: k1 is passed to multK
+      addK( v1, y, z, k )
+    }
+    multK( x, y, k1 )
+  }
+}
 /* -------------------------------------------------------------------------------------------------------------- */
 
+/**
+ *  Continuation Passing Style
+ *
+ *    (1) Every function has a "continuation" argument
+ *
+ *    (2) Continuation: a function that specifies what the caller wishes to do with the computed result
+ *
+ *    (3) The continuation function is passed the result of computation, and can do further computation
+ *
+ * EX:
+ *
+ *    def func( x : Int ) : Int = {      --|
+ *        ...                              |____ Standard function
+ *        return result                    |
+ *    }                                  --|
+ *
+ *    def func( x : Int, k : Int => Int ) : Int = {    --|
+ *        ...                                            |____ Continuation passing style function
+ *        k( result )                                    |
+ *    }                                                --|
+ *
+ *  (4) Argument ( k : Int => Int ) is a continuation; it takes the result and specifies what to do with it.
+ *
+ *
+ *
+ *
+ */
 object Notes {
   def main( args : Array[ String ] ) : Unit = {
-    println( "TODO" )
+
+    /**
+     * Overall goal: Multiply first two numbers (x * y), then sum all numbers
+     *
+     * (1) 'multAddK' defines continuation 'k1' then calls 'multK':
+     *
+     *             multAddK( 1, 2, 3, x => x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
+
+     * (2) 'multK' calls the continuation 'k1':
+     *
+     *          multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => x )
+     *
+     * (3) addK calls the continuation:
+     *
+     *            addK( 2, 2, 3, k = x => x )  ~~>  k( (2 + 2 + 3) => ( 2 + 2 + 3 ) )
+     *                                    k( 7 => 7 ) ~~> 7
+     */
+    println( ContinuationPassing.multAddK( 1, 2, 3, x => x ) )  // Out: 7
+
   }
 }
