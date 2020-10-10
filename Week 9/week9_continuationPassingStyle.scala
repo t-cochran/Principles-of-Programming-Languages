@@ -93,6 +93,7 @@ object TailRecReview {
 }
 /* -------------------------------------------------------------------------------------------------------------- */
 object ContinuationPassing {
+
   // Example 1 -- Not continuation passing style
   def add( x : Int, y : Int, z : Int ) : Int = {
     x + y + z
@@ -101,21 +102,23 @@ object ContinuationPassing {
     x * y
   }
   def multAdd( x : Int, y : Int, z : Int ) : Int = {
-    add( mult( x, y ), y, z )  // (1) mult x*y (2) add the result to y + z
+    add( mult( x, y ), y, z )
   }
+
   // Example 1 -- Continuation passing style
   def addK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
-    k( x + y + z )
+    k( x + y + z ) // (4) Pass to k=x=>x: x=v1=x*y, y=y_multAddK, z=z_multAddK
   }
   def multK( x : Int, y : Int, k : Int => Int ) : Int = {
-    k( x * y )
+    k( x * y )  // (2) Multiply x*y, pass the result to k1
   }
   def multAddK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
-    def k1( v1 : Int ) : Int = {  // Continuation: k1 is passed to multK
-      addK( v1, y, z, k )
+    def k1( v1 : Int ) : Int = {
+      addK( v1, y, z, k )  // (3) Call addK, v1=x*y, k=x=>x
     }
-    multK( x, y, k1 )
+    multK( x, y, k1 )  // (1) Call multK, pass continuation k1
   }
+
 }
 /* -------------------------------------------------------------------------------------------------------------- */
 
@@ -160,7 +163,7 @@ object Notes {
      *
      *          multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => x )
      *
-     * (3) addK calls the continuation:
+     * (3) addK calls the continuation 'k':
      *
      *            addK( 2, 2, 3, k = x => x )  ~~>  k( (2 + 2 + 3) => ( 2 + 2 + 3 ) )
      *                                    k( 7 => 7 ) ~~> 7
