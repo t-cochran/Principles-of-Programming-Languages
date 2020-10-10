@@ -118,6 +118,27 @@ object ContinuationPassing {
     }
     multK( x, y, k1 )  // (1) Call multK, pass continuation k1
   }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
+  // Example 2 -- Not continuation passing style
+  def f1( x : Int ) : Int = {
+    if ( x <= 0 )
+      1
+    else
+      3 + f1( x - 10 )
+  }
+
+  // Example 2 -- Continuation passing style
+  def f1K( x : Int, k : Int => Int ) : Int = {
+    if ( x <= 0 )
+      k( 1 )  // (2) Base case: Call k(1) and return the result
+    else {
+      def k1( v : Int ) : Int = {
+        k( 3 + v )
+      }
+      f1K( x - 10, k1 )  // (1) Recursion: f1k( x - 10, k( 3 + v ))
+    }
+  }
 
 }
 /* -------------------------------------------------------------------------------------------------------------- */
@@ -169,6 +190,27 @@ object Notes {
      *                                    k( 7 => 2 * 7 ) ~~> 14
      */
     println( ContinuationPassing.multAddK( 1, 2, 3, x => 2*x ) )  // Out: 14
+
+    /**
+     *  Overal goal: Subtract 10 from the argument until <= 0, return 1, then add 3 for each recursive call
+     *
+     *  (1) 'f1K' gets the argument and identity function 'k'
+     *
+     *  (2) Recursive case: define continuation 'k1( v ) => k( 3 + v )'
+     *
+     *  (3) Recursive case: Call 'f1k( x - 10, k1 )'
+     *
+     *  Key: Each recursive call re-defines 'k' to 'k1'; so, k1 changes for each recursive call:
+     *
+     *        k( 3 + v ) ~~> k( 3 + k( 3 + v ) ) ~~> k( 3 + k( 3 + k( 3 + v ) ) ) ~~> etc...
+     *
+     *  (4) Base case: Call k(1), which substitutes v = 1 into the above continuation; For x = 40, we have:
+     *
+     *                          k( 3 + k( 3 + k( 3 + k( 3 + v=1 ) ) ) )
+     *                                    4 + 3 + 3 + 3 = 13
+     */
+    println( ContinuationPassing.f1( 40 ) )           // Out: 13
+    println( ContinuationPassing.f1K( 40, x => x ) )  // Out: 13
 
   }
 }
