@@ -157,18 +157,18 @@ object Notes {
      *
      * (1) 'multAddK' defines continuation 'k1' then calls 'multK':
      *
-     *             multAddK( 1, 2, 3, x => x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
+     *             multAddK( 1, 2, 3, x => 2 * x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
 
      * (2) 'multK' calls the continuation 'k1':
      *
-     *          multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => x )
+     *          multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => 2 * x )
      *
      * (3) addK calls the continuation 'k':
      *
-     *            addK( 2, 2, 3, k = x => x )  ~~>  k( (2 + 2 + 3) => ( 2 + 2 + 3 ) )
-     *                                    k( 7 => 7 ) ~~> 7
+     *            addK( 2, 2, 3, k = x => 2 * x )  ~~>  k( (2 + 2 + 3) => 2 * ( 2 + 2 + 3 ) )
+     *                                    k( 7 => 2 * 7 ) ~~> 14
      */
-    println( ContinuationPassing.multAddK( 1, 2, 3, x => x ) )  // Out: 7
+    println( ContinuationPassing.multAddK( 1, 2, 3, x => 2*x ) )  // Out: 14
 
   }
 }
