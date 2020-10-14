@@ -6,11 +6,11 @@ import scala.annotation.tailrec
 sealed trait Program
 sealed trait Expr
 case class TopLevel(e: Expr) extends Program
-case class Const(v: Double) extends Expr // Expr -> Const(v)
-case class Ident(s: String) extends Expr // Expr -> Ident(s)
-case class Plus(e1: Expr, e2: Expr) extends Expr // Expr -> Plus(Expr, Expr)
-case class Minus(e1: Expr, e2: Expr) extends Expr // Expr -> Minus(Expr, Expr)
-case class Mult(e1: Expr, e2: Expr) extends Expr // Expr -> Mult (Expr, Expr)
+case class Const(v: Double) extends Expr
+case class Ident(s: String) extends Expr
+case class Plus(e1: Expr, e2: Expr) extends Expr
+case class Minus(e1: Expr, e2: Expr) extends Expr
+case class Mult(e1: Expr, e2: Expr) extends Expr
 case class Geq(e1: Expr, e2:Expr) extends Expr
 case class Eq(e1: Expr, e2: Expr) extends Expr
 case class IfThenElse(e: Expr, eIf: Expr, eElse: Expr) extends Expr
@@ -18,6 +18,13 @@ case class Let(s: String, defExpr: Expr, bodyExpr: Expr) extends Expr
 
 case class FunDef(param: String, bodyExpr: Expr) extends Expr
 case class FunCall(funCalled: Expr, argExpr: Expr) extends Expr
+/* -------------------------------------------------------------------------------------------------------------- */
+
+sealed trait Value
+case class NumValue(d: Double) extends Value
+case class BoolValue(b: Boolean) extends Value
+case class Closure(x: String, e: Expr, pi: Map[String, Value]) extends Value
+case object ErrorValue extends Value
 /* -------------------------------------------------------------------------------------------------------------- */
 
 object TailRecReview {
@@ -349,6 +356,20 @@ object ContinuationPassing {
  *        This function takes an Int, and a function that takes an Int and returns type 'T1'
  */
 object Notes {
+  def valueToNumber(v: Value): Double = v match {
+    case NumValue(d) => d
+    case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a number")
+  }
+  def valueToBoolean(v: Value): Boolean = v match {
+    case BoolValue(b) => b
+    case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a boolean")
+  }
+  def valueToClosure(v: Value): Closure = v match {
+    case Closure(x, e, pi) => Closure(x, e, pi)
+    case _ =>  throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a closure")
+  }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
   def main( args : Array[ String ] ) : Unit = {
 
     /**
