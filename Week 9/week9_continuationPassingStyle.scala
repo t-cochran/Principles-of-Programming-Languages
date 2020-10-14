@@ -370,6 +370,87 @@ object Notes {
   }
   /* -------------------------------------------------------------------------------------------------------------- */
 
+  def evalExpr(e: Expr, env: Map[String, Value]): Value =  {
+    def binaryOp(e1: Expr, e2: Expr) (fun: (Double , Double) => Double) : NumValue = {
+      val v1 = valueToNumber(evalExpr(e1, env))
+      val v2 = valueToNumber(evalExpr(e2, env))
+      val v3 = fun(v1, v2)
+      NumValue(v3)
+    }
+    def applyArith1(e: Expr) (fun: Double => Double) : NumValue = {
+      val v = valueToNumber(evalExpr(e, env))
+      val v1 = fun(v)
+      NumValue(v1)
+    }
+    def boolOp(e1: Expr, e2: Expr) (fun: (Double, Double) => Boolean) : BoolValue = {
+      val v1 = valueToNumber(evalExpr(e1, env))
+      val v2 = valueToNumber(evalExpr(e2, env))
+      val v3 = fun(v1, v2)
+      BoolValue(v3)
+    }
+    e match {
+      /*- Constants and identifiers -*/
+      case Const(f) => NumValue(f)
+      case Ident(x) => {
+        if (env contains x)
+          env(x)
+        else
+          throw new IllegalArgumentException(s"Undefined identifier $x")
+      }
+
+      /*- Arithmetic -*/
+      case Plus(e1, e2) => binaryOp(e1, e2) ( _ + _ )
+      case Minus(e1, e2) => binaryOp(e1, e2) ( _ - _ )
+      case Mult(e1, e2) =>  binaryOp(e1, e2) (_ * _)
+
+      /*- Comparison -*/
+      case Geq(e1, e2) => boolOp(e1, e2)(_ >= _)
+      case Eq(e1, e2) => boolOp(e1, e2)(_ == _)
+
+      /*- If/Then/Else -*/
+      case IfThenElse(e1, e2, e3) => {
+        val v = evalExpr(e1, env)
+        v match {
+          case BoolValue(true) => evalExpr(e2, env)
+          case BoolValue(false) => evalExpr(e3, env)
+          case _ => throw new IllegalArgumentException(s"If-then-else: ${e1} is non-boolean -- evaluates to ${v}")
+        }
+      }
+
+      /*- Let Binding -*/
+      case Let(x, e1, e2) => {
+        val v1 = evalExpr(e1, env)  // eval e1
+        val env2 = env + (x -> v1) // create a new extended env
+        evalExpr(e2, env2) // eval e2 under that.
+      }
+
+      /*- Function definitions and calls -*/
+      case FunDef(x, e) => {
+        Closure(x, e, env)
+      }
+      case FunCall(e1, e2) => {
+        val v1 = evalExpr(e1, env)
+        val v2 = evalExpr(e2, env)
+        v1 match {
+          case Closure(x, closure_ex, closed_env) => {
+            val new_env = closed_env + ( x -> v2)
+            evalExpr(closure_ex, new_env)
+          }
+          case _ => throw new IllegalArgumentException(s"Function call: $e1 does not evaluate to a closure")
+        }
+      }
+    }
+  }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
+  def evalProgram(p: Program) = {
+    val m: Map[String, Value] = Map[String,Value]()
+    p match {
+      case TopLevel(e) => evalExpr(e, m)
+    }
+  }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
   def main( args : Array[ String ] ) : Unit = {
 
     /**
