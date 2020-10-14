@@ -3,6 +3,22 @@
  */
 import scala.annotation.tailrec
 
+sealed trait Program
+sealed trait Expr
+case class TopLevel(e: Expr) extends Program
+case class Const(v: Double) extends Expr // Expr -> Const(v)
+case class Ident(s: String) extends Expr // Expr -> Ident(s)
+case class Plus(e1: Expr, e2: Expr) extends Expr // Expr -> Plus(Expr, Expr)
+case class Minus(e1: Expr, e2: Expr) extends Expr // Expr -> Minus(Expr, Expr)
+case class Mult(e1: Expr, e2: Expr) extends Expr // Expr -> Mult (Expr, Expr)
+case class Geq(e1: Expr, e2:Expr) extends Expr
+case class Eq(e1: Expr, e2: Expr) extends Expr
+case class IfThenElse(e: Expr, eIf: Expr, eElse: Expr) extends Expr
+case class Let(s: String, defExpr: Expr, bodyExpr: Expr) extends Expr
+
+case class FunDef(param: String, bodyExpr: Expr) extends Expr
+case class FunCall(funCalled: Expr, argExpr: Expr) extends Expr
+/* -------------------------------------------------------------------------------------------------------------- */
 
 object TailRecReview {
   def foo( x : Int ) : Int = {
@@ -338,44 +354,44 @@ object Notes {
     /**
      * (1) 'multAddK' defines continuation 'k1' then calls 'multK':
      *
-     *             multAddK( 1, 2, 3, x => 2 * x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
-
+     * multAddK( 1, 2, 3, x => 2 * x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
+     *
      * (2) 'multK' calls the continuation 'k1':
      *
-     *          multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => 2 * x )
+     * multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => 2 * x )
      *
      * (3) addK calls the continuation 'k':
      *
-     *            addK( 2, 2, 3, k = x => 2 * x )  ~~>  k( (2 + 2 + 3) => 2 * ( 2 + 2 + 3 ) )
-     *                                    k( 7 => 2 * 7 ) ~~> 14
+     * addK( 2, 2, 3, k = x => 2 * x )  ~~>  k( (2 + 2 + 3) => 2 * ( 2 + 2 + 3 ) )
+     * k( 7 => 2 * 7 ) ~~> 14
      */
-    println( ContinuationPassing.multAddK( 1, 2, 3, x => 2*x ) )  // Out: 14
+    println(ContinuationPassing.multAddK(1, 2, 3, x => 2 * x)) // Out: 14
 
     /**
-     *  (1) 'f1K' gets the argument and identity function 'k'
+     * (1) 'f1K' gets the argument and identity function 'k'
      *
-     *  (2) Recursive case: define continuation 'k1( v ) => k( 3 + v )'
+     * (2) Recursive case: define continuation 'k1( v ) => k( 3 + v )'
      *
-     *  (3) Recursive case: Call 'f1k( x - 10, k1 )'
+     * (3) Recursive case: Call 'f1k( x - 10, k1 )'
      *
-     *  Key: Each recursive call re-defines 'k' to 'k1'; so, k1 changes for each recursive call:
+     * Key: Each recursive call re-defines 'k' to 'k1'; so, k1 changes for each recursive call:
      *
-     *        k( 3 + v ) ~~> k( 3 + k( 3 + v ) ) ~~> k( 3 + k( 3 + k( 3 + v ) ) ) ~~> etc...
+     * k( 3 + v ) ~~> k( 3 + k( 3 + v ) ) ~~> k( 3 + k( 3 + k( 3 + v ) ) ) ~~> etc...
      *
-     *  (4) Base case: Call k(1), which substitutes v = 1 into the above continuation; For x = 40, we have:
+     * (4) Base case: Call k(1), which substitutes v = 1 into the above continuation; For x = 40, we have:
      *
-     *                          k( 3 + k( 3 + k( 3 + k( 3 + v=1 ) ) ) )
-     *                                    4 + 3 + 3 + 3 = 13
+     * k( 3 + k( 3 + k( 3 + k( 3 + v=1 ) ) ) )
+     * 4 + 3 + 3 + 3 = 13
      */
-    println( ContinuationPassing.f1( 40 ) )           // Out: 13
-    println( ContinuationPassing.f1K( 40, x => x ) )  // Out: 13
+    println(ContinuationPassing.f1(40)) // Out: 13
+    println(ContinuationPassing.f1K(40, x => x)) // Out: 13
     /* ------------------------------------------------------------------------------------------------------------ */
 
-    println( ContinuationPassing.func6( 3 ) )           // Out: 3221322
-    println( ContinuationPassing.func6_k( 3, x => x) )  // Out: 3221322
+    println(ContinuationPassing.func6(3)) // Out: 3221322
+    println(ContinuationPassing.func6_k(3, x => x)) // Out: 3221322
 
-    println( ContinuationPassing.mainFunc_1( 5 ) )          // Out: 77
-    println( ContinuationPassing.mainFunc_2( 5, x => x ) )  // Out: 77
+    println(ContinuationPassing.mainFunc_1(5)) // Out: 77
+    println(ContinuationPassing.mainFunc_2(5, x => x)) // Out: 77
 
   }
 }
