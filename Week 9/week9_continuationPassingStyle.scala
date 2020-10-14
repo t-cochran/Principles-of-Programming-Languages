@@ -356,6 +356,7 @@ object ContinuationPassing {
  *        This function takes an Int, and a function that takes an Int and returns type 'T1'
  */
 object Notes {
+  /*- Helpers for standard interpreter -*/
   def valueToNumber(v: Value): Double = v match {
     case NumValue(d) => d
     case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a number")
@@ -370,6 +371,7 @@ object Notes {
   }
   /* -------------------------------------------------------------------------------------------------------------- */
 
+  /*- Eval function for standard interpreter -*/
   def evalExpr(e: Expr, env: Map[String, Value]): Value =  {
     def binaryOp(e1: Expr, e2: Expr) (fun: (Double , Double) => Double) : NumValue = {
       val v1 = valueToNumber(evalExpr(e1, env))
@@ -419,9 +421,9 @@ object Notes {
 
       /*- Let Binding -*/
       case Let(x, e1, e2) => {
-        val v1 = evalExpr(e1, env)  // eval e1
-        val env2 = env + (x -> v1) // create a new extended env
-        evalExpr(e2, env2) // eval e2 under that.
+        val v1 = evalExpr(e1, env)
+        val env2 = env + (x -> v1)
+        evalExpr(e2, env2)
       }
 
       /*- Function definitions and calls -*/
@@ -450,6 +452,28 @@ object Notes {
     }
   }
   /* -------------------------------------------------------------------------------------------------------------- */
+
+  /*- Helpers for Continuation Passing Interpreter -*/
+  def valueToNumberCPS[T](v: Value, k: Double => T) : T = {
+    v match {
+      case NumValue(d) => k(d)
+      case _ => throw new IllegalArgumentException(s"Error converting $v to number")
+    }
+  }
+  def valueToBooleanCPS[T](v: Value, k: Boolean => T) : T = {
+    v match {
+      case BoolValue(b) => k(b)
+      case _ => throw new IllegalArgumentException(s"Error converting $v to boolean")
+    }
+  }
+  def valueToClosureCPS[T](v: Value, k: Closure => T) : T = {
+    v match {
+      case Closure(x, e, pi) => k(Closure(x, e, pi))
+      case _ => throw new IllegalArgumentException(s"Error converting $v to closure")
+    }
+  }
+
+
 
   def main( args : Array[ String ] ) : Unit = {
 
