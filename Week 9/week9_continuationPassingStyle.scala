@@ -280,20 +280,25 @@ object ContinuationPassing {
     x + 2  // Return value
   }
   def call_1( x : String ) : String = {
-    utilFunc( x.toInt )
-            .toString
+    utilFunc( x.toInt ).toString
   }
   def call_2( x : Int ) : Float = {
-    utilFunc( x )
-            .toFloat
+    utilFunc( x ).toFloat
   }
-  def mainFunc_1( x : Int ) : String = {
-    val v1 = call_1( x.toString )
-    val v2 = call_2( x )
-    v1 + v2.toString
+  def mainFunc_1( x : Int ) : String = {  // (1) Pass 'x' as an Int
+    val v1 = call_1( x.toString )         // (2) v1: Get x+2 as a String
+    val v2 = call_2( x )                  // (3) v2: Get x+2 as a float
+    v1 + v2.toString                      // (4) return: v1+v2 concatenated String
   }
 
-  // Example 7 -- Polymorphic continuation
+  /**
+   * Example 7 -- Polymorphic continuation
+   *  >>> All functions get 'k' as a formal parameter
+   *  >>> [T1], [T2], [T3] are generic types that each function will work with
+   *  >>> Return values are passed to continuation 'k'
+   *  >>> Tail calls are passed to continuation 'k'
+   *  >>> Non-tail functions 'f' pass their parameters and function 'k_' which executes lines below 'f'
+   */
   def utilFunc_k[T1]( x : Int, k : Int => T1 ) : T1 = {
     k( x + 2 )  // Return values are passed to continuation function 'k'
   }
@@ -304,13 +309,16 @@ object ContinuationPassing {
     utilFunc_k[T3]( x, v => k( v.toFloat ) )
   }
   def mainFunc_2( x : Int, k : String => String ) : String = {
-    call_1_k[ String ]( x.toString, v1 => {
-      call_2_k[ String ]( x, v2 => {
-          k( v1 + v2.toString )
+    call_1_k[ String ](  // 'call_1' isn't tail call: pass x and everything below 'call_1' as 'v1'
+      x.toString, v1 => {
+      call_2_k[ String ](  // 'call_2' isn't tail call: pass x and everything below 'call_2' as 'v2'
+        x, v2 => {
+          k( v1 + v2.toString )  // Return values are passed to continuation function 'k'
       })
     })
   }
 }
+/* -------------------------------------------------------------------------------------------------------------- */
 
 /**
  *  Continuation Passing Style
@@ -354,6 +362,15 @@ object ContinuationPassing {
  *                util_k[T1](x: Int, k: Int => T1): T1 = {}
  *
  *        This function takes an Int, and a function that takes an Int and returns type 'T1'
+ *
+ * Trampolines:
+ *
+ *    (1) Not all languages support tail call optimization (a benefit of continuation passing style)
+ *
+ *    (2) Trampolines support continuation passing style in languages that do not do tail call optimization
+ *
+ *
+ *    
  */
 object Notes {
   /*- Helpers for standard interpreter -*/
@@ -472,7 +489,7 @@ object Notes {
       case _ => throw new IllegalArgumentException(s"Error converting $v to closure")
     }
   }
-
+  /* -------------------------------------------------------------------------------------------------------------- */
 
 
   def main( args : Array[ String ] ) : Unit = {
@@ -518,6 +535,9 @@ object Notes {
 
     println(ContinuationPassing.mainFunc_1(5)) // Out: 77
     println(ContinuationPassing.mainFunc_2(5, x => x)) // Out: 77
+
+    println(ContinuationPassing.mainFunc_1( 15 ))  // Out: 1717
+    println(ContinuationPassing.mainFunc_2(15, x => x)) // Out: 1717
 
   }
 }
