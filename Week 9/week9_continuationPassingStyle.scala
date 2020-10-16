@@ -27,6 +27,11 @@ case class Closure(x: String, e: Expr, pi: Map[String, Value]) extends Value
 case object ErrorValue extends Value
 /* -------------------------------------------------------------------------------------------------------------- */
 
+sealed trait CPSResult[T]
+case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
+case class Done[T](v: T) extends CPSResult[T]
+/* -------------------------------------------------------------------------------------------------------------- */
+
 object TailRecReview {
   def foo( x : Int ) : Int = {
     x - 15
@@ -277,13 +282,13 @@ object ContinuationPassing {
 
   // Example 7 -- Not continuation passing style
   def utilFunc( x : Int ) : Int = {
-    x + 2  // Return value
+    x + 2  // return result of x+2 as an int
   }
   def call_1( x : String ) : String = {
-    utilFunc( x.toInt ).toString
+    utilFunc( x.toInt ).toString  // return result of x+2 as a string
   }
   def call_2( x : Int ) : Float = {
-    utilFunc( x ).toFloat
+    utilFunc( x ).toFloat  // return result of x+2 as a float
   }
   def mainFunc_1( x : Int ) : String = {  // (1) Pass 'x' as an Int
     val v1 = call_1( x.toString )         // (2) v1: Get x+2 as a String
@@ -363,14 +368,45 @@ object ContinuationPassing {
  *
  *        This function takes an Int, and a function that takes an Int and returns type 'T1'
  *
- * Trampolines:
+ * Trampolines: A manual approach to tail call optimization
  *
  *    (1) Not all languages support tail call optimization (a benefit of continuation passing style)
  *
  *    (2) Trampolines support continuation passing style in languages that do not do tail call optimization
  *
+ * How?
  *
- *    
+ *    (1) The tail call returns a closure of type CPSResult
+ *
+ *    (2) While-loop tail calls while making sure the stack never grows
+ *
+ *    (3) CPS result can be:
+ *
+ *        >>> Call[T]: Call( f: () => CPSResult[T] ); call 'f' returns an object of type CPSResult[T]
+ *
+ *        >>> Done[T]: Encapsulates a value of type 'T'
+ *
+ * Example:
+ *
+ *      CPS form:
+ *          def cFunc( x : .., k : .. => T ) : T = {
+ *              if ( base case )
+ *                  return k( base args )  <------- Call 'k'
+ *              else
+ *                  ...
+ *                  return tailCall( new_x, new_k )  <----- Call 'tailCall'
+ *
+ *      Trampolined:
+ *          def tFunc( x : .., k : .. => CPSResult[T] ) : CPSResult[T] = {
+ *              if ( base case )
+ *                  return Call( () => k( base args )  <---- Return a call object
+ *              else
+ *                  return Call( () => tailCall( new_x, new_k_trampoline )  <---- Return a call object
+ *
+ *
+ *    Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
+ *    computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
+ *
  */
 object Notes {
   /*- Helpers for standard interpreter -*/
@@ -491,6 +527,25 @@ object Notes {
   }
   /* -------------------------------------------------------------------------------------------------------------- */
 
+  def factorial_k[T]( n: Int, k : Int => T ) : T = {
+    if (n <= 0)
+      k(1) // () => k(1)
+    else
+      factorial_k(n-1, v=> { k( n * v ) } )  // () => ...
+  }
+
+  def t_factorial_k[T]( n : Int, k : Int => CPSResult[T]) : CPSResult[T] = {
+    println("I am in t_factorial_k")
+    if(n <= 0)
+      Call( () => { k(1) } )
+    else
+      // Used to be factorial_k(n-1, v => { k( n * v ) }
+      Call( () => t_factorial_k(n - 1, v => {  // Used to be k(n*v)
+        Call( () => { k( n * v ) } )
+      }))
+  }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
 
   def main( args : Array[ String ] ) : Unit = {
 
@@ -538,6 +593,8 @@ object Notes {
 
     println(ContinuationPassing.mainFunc_1( 15 ))  // Out: 1717
     println(ContinuationPassing.mainFunc_2(15, x => x)) // Out: 1717
+    /* ------------------------------------------------------------------------------------------------------------ */
+
 
   }
 }
