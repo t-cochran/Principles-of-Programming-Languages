@@ -370,13 +370,11 @@ object ContinuationPassing {
  *
  * Trampolines: A manual approach to tail call optimization
  *
- *    (1) Not all languages support tail call optimization (a benefit of continuation passing style)
- *
- *    (2) Trampolines support continuation passing style in languages that do not do tail call optimization
+ *    (1) Trampolines support continuation passing style in languages that do not do tail call optimization
  *
  * How?
  *
- *    (1) The tail call returns a closure of type CPSResult
+ *    (1) The tail call returns a closure of type 'CPSResult'
  *
  *    (2) While-loop tail calls while making sure the stack never grows
  *
@@ -389,24 +387,26 @@ object ContinuationPassing {
  * Example:
  *
  *      CPS form:
- *          def cFunc( x : .., k : .. => T ) : T = {
+ *          def cFunc( x : .., k : .. => T ) : T = {   <----- k: Int => T, ret 'T'
  *              if ( base case )
- *                  return k( base args )  <------- Call 'k'
+ *                  return k( base args )              <----- Call 'k'
  *              else
  *                  ...
- *                  return tailCall( new_x, new_k )  <----- Call 'tailCall'
+ *                  return tailCall( new_x, new_k )    <----- Call 'tailCall'
  *
  *      Trampolined:
- *          def tFunc( x : .., k : .. => CPSResult[T] ) : CPSResult[T] = {
+ *          def tFunc( x : .., k : .. => CPSResult[T] ) : CPSResult[T] = {  <----- k: CPSResult[T], ret 'CPSResult[T]'
  *              if ( base case )
- *                  return Call( () => k( base args )  <---- Return a call object
+ *                  return Call( () => k( base args )                       <----- Return a call object
  *              else
- *                  return Call( () => tailCall( new_x, new_k_trampoline )  <---- Return a call object
+ *                  return Call( () => tailCall( new_x, new_k_trampoline )  <----- Return a call object
  *
+ *    (4) When the trampolined function is called, it returns a [ new function encapsulated inside a Call object ]
  *
- *    Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
- *    computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
+ *    (5) Every function call 'f(..args..)' is replaced by 'Call( () => f(..args..) )'
  *
+ *    (6) Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
+ *        computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
  */
 object Notes {
   /*- Helpers for standard interpreter -*/
