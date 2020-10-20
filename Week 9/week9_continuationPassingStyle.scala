@@ -322,6 +322,63 @@ object ContinuationPassing {
       })
     })
   }
+  /* -------------------------------------------------------------------------------------------------------------- */
+
+  /**
+   * Example 8 -- Trampoline factorial
+   */
+  def factorial_k[T]( n: Int, k : Int => T ) : T = {
+    if (n <= 0)
+      k(1) // () => k(1)
+    else
+      factorial_k(n-1, v=> { k( n * v ) } )  // () => ...
+  }
+
+  def t_factorial_k[T]( n : Int, k : Int => CPSResult[T]) : CPSResult[T] = {
+    println("I am in t_factorial_k")
+    if(n <= 0)
+      Call( () => { k(1) } )
+    else
+    // Used to be factorial_k(n-1, v => { k( n * v ) }
+      Call( () => t_factorial_k(n - 1, v => {  // Used to be k(n*v)
+        Call( () => { k( n * v ) } )
+      }))
+  }
+
+  def factorial( n : Int ) : Int = {
+
+    def terminal_continuation( x: Int ): CPSResult[Int] = {
+      Done(x)
+    }
+
+    var call_res = t_factorial_k(n, terminal_continuation)
+    var done = false
+
+    while (!done ){
+      println("DEBUG: I am in trampoline!")
+      call_res match {
+        // Here is where we will call f
+        case Call(f) => {
+          call_res = f()
+        }
+        case Done(v) => {
+          done = true
+        }
+      }
+    }
+
+    print("DEBUG: Trampoline is done.")
+    call_res match {
+      case Call(f) => {
+        throw new AssertionError(
+          "Should not reach here; the while loop continues until 'Done'"
+        )
+      }
+      case Done(v: Int) => {
+        return v
+      }
+    }
+  }
 }
 /* -------------------------------------------------------------------------------------------------------------- */
 
@@ -527,25 +584,6 @@ object Notes {
   }
   /* -------------------------------------------------------------------------------------------------------------- */
 
-  def factorial_k[T]( n: Int, k : Int => T ) : T = {
-    if (n <= 0)
-      k(1) // () => k(1)
-    else
-      factorial_k(n-1, v=> { k( n * v ) } )  // () => ...
-  }
-
-  def t_factorial_k[T]( n : Int, k : Int => CPSResult[T]) : CPSResult[T] = {
-    println("I am in t_factorial_k")
-    if(n <= 0)
-      Call( () => { k(1) } )
-    else
-      // Used to be factorial_k(n-1, v => { k( n * v ) }
-      Call( () => t_factorial_k(n - 1, v => {  // Used to be k(n*v)
-        Call( () => { k( n * v ) } )
-      }))
-  }
-  /* -------------------------------------------------------------------------------------------------------------- */
-
 
   def main( args : Array[ String ] ) : Unit = {
 
@@ -595,6 +633,8 @@ object Notes {
     println(ContinuationPassing.mainFunc_2(15, x => x)) // Out: 1717
     /* ------------------------------------------------------------------------------------------------------------ */
 
+    // Test the trampoline for factorial
+    ContinuationPassing.factorial( 4 )
 
   }
 }
