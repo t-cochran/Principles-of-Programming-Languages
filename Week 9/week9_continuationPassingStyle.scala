@@ -123,257 +123,320 @@ object TailRecReview {
 object ContinuationPassing {
 
   // Example 1 -- Not continuation passing style
-  def add( x : Int, y : Int, z : Int ) : Int = {
+  def add(x: Int, y: Int, z: Int): Int = {
     x + y + z
   }
-  def mult( x : Int, y : Int ) : Int = {
+
+  def mult(x: Int, y: Int): Int = {
     x * y
   }
-  def multAdd( x : Int, y : Int, z : Int ) : Int = {
-    add( mult( x, y ), y, z )
+
+  def multAdd(x: Int, y: Int, z: Int): Int = {
+    add(mult(x, y), y, z)
   }
 
   // Example 1 -- Continuation passing style
-  def addK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
-    k( x + y + z ) // (4) Pass to k=x=>x: x=v1=x*y, y=y_multAddK, z=z_multAddK
+  def addK(x: Int, y: Int, z: Int, k: Int => Int): Int = {
+    k(x + y + z) // (4) Pass to k=x=>x: x=v1=x*y, y=y_multAddK, z=z_multAddK
   }
-  def multK( x : Int, y : Int, k : Int => Int ) : Int = {
-    k( x * y )  // (2) Multiply x*y, pass the result to k1
+
+  def multK(x: Int, y: Int, k: Int => Int): Int = {
+    k(x * y) // (2) Multiply x*y, pass the result to k1
   }
-  def multAddK( x : Int, y : Int, z : Int, k : Int => Int ) : Int = {
-    def k1( v1 : Int ) : Int = {
-      addK( v1, y, z, k )  // (3) Call addK, v1=x*y, k=x=>x
+
+  def multAddK(x: Int, y: Int, z: Int, k: Int => Int): Int = {
+    def k1(v1: Int): Int = {
+      addK(v1, y, z, k) // (3) Call addK, v1=x*y, k=x=>x
     }
-    multK( x, y, k1 )  // (1) Call multK, pass continuation k1
+
+    multK(x, y, k1) // (1) Call multK, pass continuation k1
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 2 -- Not continuation passing style
-  def f1( x : Int ) : Int = {
-    if ( x <= 0 )
+  def f1(x: Int): Int = {
+    if (x <= 0)
       1
     else
-      3 + f1( x - 10 )
+      3 + f1(x - 10)
   }
 
   // Example 2 -- Continuation passing style
-  def f1K( x : Int, k : Int => Int ) : Int = {
-    if ( x <= 0 )
-      k( 1 )  // (2) Base case: Call k(1) and return the result
+  def f1K(x: Int, k: Int => Int): Int = {
+    if (x <= 0)
+      k(1) // (2) Base case: Call k(1) and return the result
     else {
-      def k1( v : Int ) : Int = {
-        k( 3 + v )
+      def k1(v: Int): Int = {
+        k(3 + v)
       }
-      f1K( x - 10, k1 )  // (1) Recursion: f1k( x - 10, k( 3 + v ))
+
+      f1K(x - 10, k1) // (1) Recursion: f1k( x - 10, k( 3 + v ))
     }
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 3 -- Not continuation passing style
-  def func1( x : Int ) : Int = {
+  def func1(x: Int): Int = {
     val y = x * x
     val z = y + y - 5 * x
-    if ( z <= 0 )
-      1  // Return value
+    if (z <= 0)
+      1 // Return value
     else
-      z  // Return value
+      z // Return value
   }
 
   // Example 3 -- Continuation passing style
-  def func1_k( x : Int, k : Int => Int ) : Int = {
+  def func1_k(x: Int, k: Int => Int): Int = {
     val y = x * x
     val z = y + y - 5 * x
-    if ( z <= 0 )
-      k( 1 )  // Return values are passed to continuation function 'k'
+    if (z <= 0)
+      k(1) // Return values are passed to continuation function 'k'
     else
-      k( z )
+      k(z)
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 4 -- Not continuation passing style
-  def func2( x : Int ) : Int = {
-    if ( x >= 0 )
-      func1( x + 1 )  // Tail call
+  def func2(x: Int): Int = {
+    if (x >= 0)
+      func1(x + 1) // Tail call
     else {
       val y = x * x - 2
-      func1( y )  // Tail call
+      func1(y) // Tail call
     }
   }
 
   // Example 4 -- Continuation passing style
-  def func2_k( x : Int, k : Int => Int ) : Int = {
-    if ( x >= 0 )
-      func1_k( x + 1, k )  // Tail calls are passed the continuation 'k'
+  def func2_k(x: Int, k: Int => Int): Int = {
+    if (x >= 0)
+      func1_k(x + 1, k) // Tail calls are passed the continuation 'k'
     else {
       val y = x * x - 2
-      func1_k( y, k )
+      func1_k(y, k)
     }
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 5 -- Not continuation passing style
-  def func3( x : Int, y : Int ) : Int = {
-    if ( x == 0 )
+  def func3(x: Int, y: Int): Int = {
+    if (x == 0)
       0
-    else if ( x > 0 ) {
+    else if (x > 0) {
       val s1 = 25
       val y1 = x * y + x - y
-      s1 + y1  // Return value
+      s1 + y1 // Return value
     }
     else {
-      val y1 = func2(x)  // Function call that is not a tail call
+      val y1 = func2(x) // Function call that is not a tail call
       y1 + y - 2 * x
     }
   }
 
   // Example 5 -- Continuation passing style
-  def func3_k( x : Int, y : Int, k : Int => Int ) : Int = {
-    if ( x == 0 )
-      k( 0 )  // Return values are passed to continuation function 'k'
-    else if ( x > 0 ) {
+  def func3_k(x: Int, y: Int, k: Int => Int): Int = {
+    if (x == 0)
+      k(0) // Return values are passed to continuation function 'k'
+    else if (x > 0) {
       val s1 = 25
       val y1 = x * y + x - y
-      k( s1 + y1 )  // Return values are passed to continuation function 'k'
+      k(s1 + y1) // Return values are passed to continuation function 'k'
     }
     else {
-      def k1( y1 : Int ) : Int = {  // Wrap the return in continuation 'k1'
-        k( y1 + y - 2 * x )  // Return values are passed to continuation function 'k'
+      def k1(y1: Int): Int = { // Wrap the return in continuation 'k1'
+        k(y1 + y - 2 * x) // Return values are passed to continuation function 'k'
       }
-      func2_k( x, k1 )  // Call the continuation version of 'func2' and pass continuation 'k1'
+
+      func2_k(x, k1) // Call the continuation version of 'func2' and pass continuation 'k1'
     }
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 6 -- Not continuation passing style
-  def func6( x : Int ) : Int = {
-    val v1 = func3( x, x - 2 )  // (4) There exists a function call that is not a tail call
+  def func6(x: Int): Int = {
+    val v1 = func3(x, x - 2) // (4) There exists a function call that is not a tail call
     /* (4) -- */
-    val v2 = func3( x - 2, x )  // (3) There exists a function call that is not a tail call
+    val v2 = func3(x - 2, x) // (3) There exists a function call that is not a tail call
     /* (3) -- */
-    val v3 = func2( v1 )  // (2) There exists a function call that is not a tail call
+    val v3 = func2(v1) // (2) There exists a function call that is not a tail call
     /* (2) -- */
     val v4 = v1 + v2 + v3
-    func3( v4, v3 )  // (1) Tail call
+    func3(v4, v3) // (1) Tail call
   }
 
   // Example 6 -- Continuation passing style
-  def func6_k( x : Int, k : Int => Int ) : Int = {
-    def k1( v1 : Int ) : Int = {  // (4) Wrap the return in continuation 'k1'
+  def func6_k(x: Int, k: Int => Int): Int = {
+    def k1(v1: Int): Int = { // (4) Wrap the return in continuation 'k1'
 
-      def k2( v2 : Int ) : Int = {  // (3) Wrap the return in continuation 'k2'
+      def k2(v2: Int): Int = { // (3) Wrap the return in continuation 'k2'
 
-        def k3( v3 : Int ) : Int = {  // (2) Wrap the return in continuation 'k3'
+        def k3(v3: Int): Int = { // (2) Wrap the return in continuation 'k3'
 
           val v4 = v1 + v2 + v3
-          k( func3( v4, v3 ) )   // (1) Tail calls are passed the continuation 'k'
+          k(func3(v4, v3)) // (1) Tail calls are passed the continuation 'k'
 
         }
 
-        func2_k( v1, k3 )  // (2) Call the continuation version of 'func2' and pass continuation 'k3'
+        func2_k(v1, k3) // (2) Call the continuation version of 'func2' and pass continuation 'k3'
       }
 
-      func3_k( x - 2, x, k2 )  // (3) Call the continuation version of 'func3' and pass continuation 'k2'
+      func3_k(x - 2, x, k2) // (3) Call the continuation version of 'func3' and pass continuation 'k2'
 
     }
 
-    func3_k( x, x - 2, k1 )  // (4) Call the continuation version of 'func3' and pass continuation 'k1'
+    func3_k(x, x - 2, k1) // (4) Call the continuation version of 'func3' and pass continuation 'k1'
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 7 -- Not continuation passing style
-  def utilFunc( x : Int ) : Int = {
-    x + 2  // return result of x+2 as an int
+  def utilFunc(x: Int): Int = {
+    x + 2 // return result of x+2 as an int
   }
-  def call_1( x : String ) : String = {
-    utilFunc( x.toInt ).toString  // return result of x+2 as a string
+
+  def call_1(x: String): String = {
+    utilFunc(x.toInt).toString // return result of x+2 as a string
   }
-  def call_2( x : Int ) : Float = {
-    utilFunc( x ).toFloat  // return result of x+2 as a float
+
+  def call_2(x: Int): Float = {
+    utilFunc(x).toFloat // return result of x+2 as a float
   }
-  def mainFunc_1( x : Int ) : String = {  // (1) Pass 'x' as an Int
-    val v1 = call_1( x.toString )         // (2) v1: Get x+2 as a String
-    val v2 = call_2( x )                  // (3) v2: Get x+2 as a float
-    v1 + v2.toString                      // (4) return: v1+v2 concatenated String
+
+  def mainFunc_1(x: Int): String = { // (1) Pass 'x' as an Int
+    val v1 = call_1(x.toString) // (2) v1: Get x+2 as a String
+    val v2 = call_2(x) // (3) v2: Get x+2 as a float
+    v1 + v2.toString // (4) return: v1+v2 concatenated String
   }
 
   /**
    * Example 7 -- Polymorphic continuation
-   *  >>> All functions get 'k' as a formal parameter
-   *  >>> [T1], [T2], [T3] are generic types that each function will work with
-   *  >>> Return values are passed to continuation 'k'
-   *  >>> Tail calls are passed to continuation 'k'
-   *  >>> Non-tail functions 'f' pass their parameters and function 'k_' which executes lines below 'f'
+   * >>> All functions get 'k' as a formal parameter
+   * >>> [T1], [T2], [T3] are generic types that each function will work with
+   * >>> Return values are passed to continuation 'k'
+   * >>> Tail calls are passed to continuation 'k'
+   * >>> Non-tail functions 'f' pass their parameters and function 'k_' which executes lines below 'f'
    */
-  def utilFunc_k[T1]( x : Int, k : Int => T1 ) : T1 = {
-    k( x + 2 )  // Return values are passed to continuation function 'k'
+  def utilFunc_k[T1](x: Int, k: Int => T1): T1 = {
+    k(x + 2) // Return values are passed to continuation function 'k'
   }
-  def call_1_k[T2]( x : String, k : String => T2 ) : T2 = {
-    utilFunc_k[T2]( x.toInt, v => k( v.toString ) )
+
+  def call_1_k[T2](x: String, k: String => T2): T2 = {
+    utilFunc_k[T2](x.toInt, v => k(v.toString))
   }
-  def call_2_k[T3]( x : Int, k : Float => T3 ) : T3 = {
-    utilFunc_k[T3]( x, v => k( v.toFloat ) )
+
+  def call_2_k[T3](x: Int, k: Float => T3): T3 = {
+    utilFunc_k[T3](x, v => k(v.toFloat))
   }
-  def mainFunc_2( x : Int, k : String => String ) : String = {
-    call_1_k[ String ](  // 'call_1' isn't tail call: pass x and everything below 'call_1' as 'v1'
+
+  def mainFunc_2(x: Int, k: String => String): String = {
+    call_1_k[String]( // 'call_1' isn't tail call: pass x and everything below 'call_1' as 'v1'
       x.toString, v1 => {
-      call_2_k[ String ](  // 'call_2' isn't tail call: pass x and everything below 'call_2' as 'v2'
-        x, v2 => {
-          k( v1 + v2.toString )  // Return values are passed to continuation function 'k'
+        call_2_k[String]( // 'call_2' isn't tail call: pass x and everything below 'call_2' as 'v2'
+          x, v2 => {
+            k(v1 + v2.toString) // Return values are passed to continuation function 'k'
+          })
       })
-    })
   }
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /**
    * Example 8 -- Trampoline factorial
+   *
+   * sealed trait CPSResult[T]
+   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
+   * case class Done[T](v: T) extends CPSResult[T]
    */
-  def factorial_k[T]( n: Int, k : Int => T ) : T = {
-    if (n <= 0)
-      k(1) // () => k(1)
+  // Continuation passing factorial function without trampoline
+  def factorial_k[ T ]( n: Int, k: Int => T ): T = {
+    if ( n <= 0 )
+      k( 1 ) // ( ) => { k( 1 ) }
     else
-      factorial_k(n-1, v=> { k( n * v ) } )  // () => ...
+      factorial_k( n - 1, v => { k( n * v ) } ) // ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } )
   }
 
-  def t_factorial_k[T]( n : Int, k : Int => CPSResult[T]) : CPSResult[T] = {
-    println("I am in t_factorial_k")
-    if(n <= 0)
-      Call( () => { k(1) } )
+  // (4) Create the trampoline: called once for each 'n' in n!
+  // Return nested functions, each wrpped in a call object
+  def t_factorial_k[ T ]( n: Int, k: Int => CPSResult[ T ] ): CPSResult[ T ] = {
+    if ( n <= 0 )
+      Call( ( ) => { k( 1 ) } )  // Wrap continuation call object
     else
-    // Used to be factorial_k(n-1, v => { k( n * v ) }
-      Call( () => t_factorial_k(n - 1, v => {  // Used to be k(n*v)
-        Call( () => { k( n * v ) } )
-      }))
+      Call( ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } ) )  // Wrap recursive call object
   }
+  // (1) Factorial function is called
+  def factorial( n: Int ): Int = {
+    def terminal_continuation( x: Int ): CPSResult[ Int ] = { Done( x ) }  // (2) Wrap 'x' in 'Done' call object
+    var call_res = t_factorial_k( n, terminal_continuation )  // (3) Pass 'n' to 't_factorial_k', create the trampoline
 
-  def factorial( n : Int ) : Int = {
-
-    def terminal_continuation( x: Int ): CPSResult[Int] = {
-      Done(x)
+    // (5) While loop: Run functions in the 'trampoline'
+    var done = false
+    while ( !done ) {
+      call_res match {
+        case Call( f ) => call_res = f( )  // goto the next nested 'Call' object, and call nested function 'f()'
+        case Done( v ) => done = true      // Stop when terminal_continuation is reached
+      }
     }
+    // (6) Unwrap 'call_res = Done( v )' when the trampoline is over
+    call_res match {
+      case Done( v ) => v  // Return result of the factorial computation
+      case _ => throw new MatchError( s"Catch all: Call() should not be found here")
+    }
+  }
+  /* -------------------------------------------------------------------------------------------------------------- */
 
-    var call_res = t_factorial_k(n, terminal_continuation)
+  /**
+   * Example 9 -- Trampoline factorial
+   */
+  //was: def fibonacci_k[T](n: Int, k: Int => T): T
+  def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
+
+    if (n <= 2) {
+      //was: return k(1)
+      // since fibonacci should not call k, it returns a Call object to trampoline, which will call it.
+      return Call(() => {
+        k(1)
+      })
+    }
+    else
+    // was: fibonacci_k(n-1, v1 => fibonacci_k(n-2, v2 => k(v1+v2)))
+    // make it into a call object
+    // Do not forget to modify the continuation as well.
+    // Wherever you see a function being called, mechanically replace it by Call( () => fun-being-called)
+      return Call(() => {
+        tramp_fibonacci_k(n - 1,
+          v1 => Call(() => {
+            tramp_fibonacci_k(n - 2, v2 => {
+              Call(() => {
+                k(v1 + v2)
+              })
+            })
+          })
+        )
+      }
+      )
+  }
+
+  def fibonacci(n: Int): Int = {
     var done = false
 
-    while (!done ){
-      println("DEBUG: I am in trampoline!")
-      call_res match {
-        // Here is where we will call f
+    def k(t: Int) = Done(t)
+
+    var res: CPSResult[Int] = tramp_fibonacci_k(n, k)
+    while (!done) {
+      res match {
         case Call(f) => {
-          call_res = f()
+          res = f()
         }
         case Done(v) => {
           done = true
         }
       }
     }
-
-    print("DEBUG: Trampoline is done.")
-    call_res match {
-      case Call(f) => {
-        throw new AssertionError(
-          "Should not reach here; the while loop continues until 'Done'"
-        )
-      }
+    res match {
+      case Call(f) => throw new IllegalArgumentException("This should never happen -- since while loop above can only exit when done is true")
       case Done(v: Int) => {
         return v
       }
@@ -384,6 +447,7 @@ object ContinuationPassing {
 
 /**
  *  Continuation Passing Style
+ *  Continue computation in function calls by passing other functions (continuation functions) as arguments.
  *
  *    (1) Every function has a "continuation" argument
  *
@@ -634,7 +698,7 @@ object Notes {
     /* ------------------------------------------------------------------------------------------------------------ */
 
     // Test the trampoline for factorial
-    ContinuationPassing.factorial( 4 )
-
+    println( s"\n4! is: ${ContinuationPassing.factorial( 4 )}" )
+    /* ------------------------------------------------------------------------------------------------------------ */
   }
 }
