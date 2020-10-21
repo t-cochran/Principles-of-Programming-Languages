@@ -1,6 +1,8 @@
 /**
  *  week9_continuationPassingStyle.scala
  */
+import TailRecReview.factorial
+
 import scala.annotation.tailrec
 
 sealed trait Program
@@ -394,14 +396,28 @@ object ContinuationPassing {
   /**
    * Example 9 -- Trampoline fibonacci
    */
-  def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
+  // OLD: continuation passing fibonacci function without trampoline
+  def fib_k[ T ]( n : Int, k: Int => T ): T = {
+    if (n <= 2)
+      k( 1 )  // ( ) => { k( 1 ) }
+    else
+      fib_k( n - 1, v1 => fib_k( n - 2, v2 => k( v1 + v2 ) ) )
+  }
 
+  /**
+   * NEW: Trampoline
+   *
+   * Return: Closure of type CPSResult[T] instead of continuation type 'T'
+   *
+   * sealed trait CPSResult[T]
+   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
+   * case class Done[T](v: T) extends CPSResult[T]
+   */
+  def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
     if (n <= 2) {
       //was: return k(1)
       // since fibonacci should not call k, it returns a Call object to trampoline, which will call it.
-      return Call(() => {
-        k(1)
-      })
+      return Call( () => { k( 1 ) } )
     }
     else
     // was: fibonacci_k(n-1, v1 => fibonacci_k(n-2, v2 => k(v1+v2)))
@@ -700,8 +716,9 @@ object Notes {
     println(ContinuationPassing.mainFunc_2(15, x => x)) // Out: 1717
     /* ------------------------------------------------------------------------------------------------------------ */
 
-    // Test the trampoline for factorial
+    // Test the trampoline for factorial and fibonacci
     println( s"\n4! is: ${ContinuationPassing.factorial( 4 )}" )
+    println( s"\n fib(11) is: ${ContinuationPassing.fib_k( 11, x=>x)}" )
     /* ------------------------------------------------------------------------------------------------------------ */
   }
 }
