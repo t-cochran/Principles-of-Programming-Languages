@@ -345,12 +345,8 @@ object ContinuationPassing {
 
   /**
    * Example 8 -- Trampoline factorial
-   *
-   * sealed trait CPSResult[T]
-   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
-   * case class Done[T](v: T) extends CPSResult[T]
    */
-  // Continuation passing factorial function without trampoline
+  // OLD: continuation passing factorial function without trampoline
   def factorial_k[ T ]( n: Int, k: Int => T ): T = {
     if ( n <= 0 )
       k( 1 ) // ( ) => { k( 1 ) }
@@ -358,8 +354,16 @@ object ContinuationPassing {
       factorial_k( n - 1, v => { k( n * v ) } ) // ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } )
   }
 
-  // (4) Create the trampoline: called once for each 'n' in n!
-  // Return nested functions, each wrpped in a call object
+  /**
+   * NEW: Trampoline
+   *
+   * Return: Closure of type CPSResult[T] instead of continuation type 'T'
+   *
+   * sealed trait CPSResult[T]
+   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
+   * case class Done[T](v: T) extends CPSResult[T]
+   */
+  // (4) Create the trampoline: called once for each 'n' in n!, return nested functions each wrapped in a call object
   def t_factorial_k[ T ]( n: Int, k: Int => CPSResult[ T ] ): CPSResult[ T ] = {
     if ( n <= 0 )
       Call( ( ) => { k( 1 ) } )  // Wrap continuation call object
@@ -388,9 +392,8 @@ object ContinuationPassing {
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /**
-   * Example 9 -- Trampoline factorial
+   * Example 9 -- Trampoline fibonacci
    */
-  //was: def fibonacci_k[T](n: Int, k: Int => T): T
   def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
 
     if (n <= 2) {
