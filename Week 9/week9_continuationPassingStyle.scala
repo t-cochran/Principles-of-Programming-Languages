@@ -348,12 +348,17 @@ object ContinuationPassing {
   /**
    * Example 8 -- Trampoline factorial
    */
-  // OLD: continuation passing factorial function without trampoline
+  // OLD: CPS factorial function
   def factorial_k[ T ]( n: Int, k: Int => T ): T = {
     if ( n <= 0 )
-      k( 1 ) // ( ) => { k( 1 ) }
-    else
-      factorial_k( n - 1, v => { k( n * v ) } ) // ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } )
+      k( 1 ) // Will become: ( ) => { k( 1 ) }
+    else {
+      /**
+       * Will become:
+       * ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } )
+       */
+      factorial_k( n - 1, v => { k( n * v ) } )
+    }
   }
 
   /**
@@ -396,14 +401,23 @@ object ContinuationPassing {
   /**
    * Example 9 -- Trampoline fibonacci
    */
-  // OLD: continuation passing fibonacci function without trampoline
+  // OLD: CPS fibonacci function
   def fib_k[ T ]( n : Int, k: Int => T ): T = {
     if (n <= 2)
-      k( 1 )  // ( ) => { k( 1 ) }
-    else
+      k( 1 )  // Will become: ( ) => { k( 1 ) }
+    else {
+      /**
+       * Will become:
+       * Call( ( ) =>
+       *    tramp_fibonacci_k(n - 1, v1 =>
+       *        Call( ( ) =>
+       *            tramp_fibonacci_k(n - 2, v2 =>
+       *                Call( ( ) =>
+       *                    k(v1 + v2)
+       */
       fib_k( n - 1, v1 => fib_k( n - 2, v2 => k( v1 + v2 ) ) )
+    }
   }
-
   /**
    * NEW: Trampoline
    *
@@ -415,7 +429,6 @@ object ContinuationPassing {
    */
   def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
     if (n <= 2) {
-      //was: return k(1)
       // since fibonacci should not call k, it returns a Call object to trampoline, which will call it.
       return Call( () => { k( 1 ) } )
     }
@@ -524,7 +537,7 @@ object ContinuationPassing {
  *
  *        >>> Done[T]: Encapsulates a value of type 'T'
  *
- * Example:
+ * Example: Note -- Convert to CPS, then to trampoline; it seems to be easier that way
  *
  *      CPS form:
  *          def cFunc( x : .., k : .. => T ) : T = {   <----- k: Int => T, ret 'T'
@@ -718,7 +731,7 @@ object Notes {
 
     // Test the trampoline for factorial and fibonacci
     println( s"\n4! is: ${ContinuationPassing.factorial( 4 )}" )
-    println( s"\n fib(11) is: ${ContinuationPassing.fib_k( 11, x=>x)}" )
+    println( s"\n fib(11) is: ${ContinuationPassing.fib_k( 11, x=>x )}" )
     /* ------------------------------------------------------------------------------------------------------------ */
   }
 }
