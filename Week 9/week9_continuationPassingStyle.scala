@@ -467,6 +467,16 @@ object ContinuationPassing {
         }
       }
     }
+    while (!done) {
+      res match {
+        case Call(f) => {
+          res = f()
+        }
+        case Done(v) => {
+          done = true
+        }
+      }
+    }
     res match {
       case Call(f) => throw new IllegalArgumentException("This should never happen -- since while loop above can only exit when done is true")
       case Done(v: Int) => {
