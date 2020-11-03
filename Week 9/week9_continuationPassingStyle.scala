@@ -1,8 +1,6 @@
 /**
  *  week9_continuationPassingStyle.scala
  */
-import TailRecReview.factorial
-
 import scala.annotation.tailrec
 
 sealed trait Program
@@ -122,8 +120,38 @@ object TailRecReview {
   }
 }
 /* -------------------------------------------------------------------------------------------------------------- */
-object ContinuationPassing {
 
+/**
+ *  Continuation Passing Style
+ *  Continue computation in function calls by passing other functions (continuation functions) as arguments.
+ *
+ *    (1) Every function has a "continuation" argument
+ *
+ *    (2) Continuation: a function that specifies what the caller wishes to do with the computed result
+ *
+ *    (3) The continuation function is passed the result of computation, and can do further computation
+ *
+ *    def func( x : Int ) : Int = {      --|
+ *        ...                              |____ Standard function
+ *        return result                    |
+ *    }                                  --|
+ *
+ *    def func( x : Int, k : Int => Int ) : Int = {    --|
+ *        ...                                            |____ Continuation passing style function
+ *        k( result )                                    |
+ *    }                                                --|
+ *
+ *  (4) Argument ( k : Int => Int ) is a continuation; it takes the result and specifies what to do with it.
+ *
+ * Properties of continuation passing style:
+ *
+ *    (1) Every function involved has an extra argument 'k' for the continuation function 'k : Int => Int'
+ *
+ *    (2) The first call is passed a "termination continuation", typically 'x => x'
+ *
+ *    (3) Each code path ends with a function call, and all calls are tail calls
+ */
+object ContinuationPassing {
   // Example 1 -- Not continuation passing style
   def add(x: Int, y: Int, z: Int): Int = {
     x + y + z
@@ -153,7 +181,6 @@ object ContinuationPassing {
 
     multK(x, y, k1) // (1) Call multK, pass continuation k1
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 2 -- Not continuation passing style
@@ -176,7 +203,6 @@ object ContinuationPassing {
       f1K(x - 10, k1) // (1) Recursion: f1k( x - 10, k( 3 + v ))
     }
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 3 -- Not continuation passing style
@@ -198,7 +224,6 @@ object ContinuationPassing {
     else
       k(z)
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 4 -- Not continuation passing style
@@ -220,7 +245,6 @@ object ContinuationPassing {
       func1_k(y, k)
     }
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 5 -- Not continuation passing style
@@ -255,7 +279,6 @@ object ContinuationPassing {
       func2_k(x, k1) // Call the continuation version of 'func2' and pass continuation 'k1'
     }
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
   // Example 6 -- Not continuation passing style
@@ -292,9 +315,22 @@ object ContinuationPassing {
 
     func3_k(x, x - 2, k1) // (4) Call the continuation version of 'func3' and pass continuation 'k1'
   }
-
   /* -------------------------------------------------------------------------------------------------------------- */
 
+  /**
+   * Polymorphic Continuations:
+   *
+   *    (1) Continuation passing style can change the return type of each continuation function
+   *
+   *    (2) These continuations need to return multiple types
+   *
+   *    (3) Define the continuation functions more generally using brackets for type parameters:
+   *
+   *                util_k[T1](x: Int, k: Int => T1): T1 = {}
+   *
+   *        This function takes an Int, and a function that takes an Int and returns type 'T1'
+   *        Type parameter [T1] tells the compiler that util_k can take parameter of type T1 which can be anything.
+   */
   // Example 7 -- Not continuation passing style
   def utilFunc(x: Int): Int = {
     x + 2 // return result of x+2 as an int
@@ -346,7 +382,45 @@ object ContinuationPassing {
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /**
-   * Example 8 -- Trampoline factorial
+   * Trampolines: A manual approach to tail call optimization
+   *
+   *    (1) Trampolines support continuation passing style in languages that do not do tail call optimization
+   *
+   * How?
+   *
+   *    (1) The tail call returns a closure of type 'CPSResult'
+   *
+   *    (2) While-loop tail calls while making sure the stack never grows
+   *
+   *    (3) CPS result can be:
+   *
+   *        >>> Call[T]: Call( f: () => CPSResult[T] ); call 'f' returns an object of type CPSResult[T]
+   *
+   *        >>> Done[T]: Encapsulates a value of type 'T'
+   *
+   * Example: Note -- Convert to CPS, then to trampoline; it seems to be easier that way
+   *
+   *      CPS form:
+   *          def cFunc( x : .., k : .. => T ) : T = {   <----- k: Int => T, ret 'T'
+   *              if ( base case )
+   *                  return k( base args )              <----- Call 'k'
+   *              else
+   *                  ...
+   *                  return tailCall( new_x, new_k )    <----- Call 'tailCall'
+   *
+   *      Trampolined:
+   *          def tFunc( x : .., k : .. => CPSResult[T] ) : CPSResult[T] = {  <----- k: CPSResult[T], ret 'CPSResult[T]'
+   *              if ( base case )
+   *                  return Call( () => k( base args )                       <----- Return a call object
+   *              else
+   *                  return Call( () => tailCall( new_x, new_k_trampoline )  <----- Return a call object
+   *
+   *    (4) When the trampolined function is called, it returns a [ new function encapsulated inside a Call object ]
+   *
+   *    (5) Every function call 'f(..args..)' is replaced by 'Call( () => f(..args..) )'
+   *
+   *    (6) Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
+   *        computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
    */
   // OLD: CPS factorial function
   def factorial_k[ T ]( n: Int, k: Int => T ): T = {
@@ -488,88 +562,7 @@ object ContinuationPassing {
 /* -------------------------------------------------------------------------------------------------------------- */
 
 /**
- *  Continuation Passing Style
- *  Continue computation in function calls by passing other functions (continuation functions) as arguments.
- *
- *    (1) Every function has a "continuation" argument
- *
- *    (2) Continuation: a function that specifies what the caller wishes to do with the computed result
- *
- *    (3) The continuation function is passed the result of computation, and can do further computation
- *
- * EX:
- *
- *    def func( x : Int ) : Int = {      --|
- *        ...                              |____ Standard function
- *        return result                    |
- *    }                                  --|
- *
- *    def func( x : Int, k : Int => Int ) : Int = {    --|
- *        ...                                            |____ Continuation passing style function
- *        k( result )                                    |
- *    }                                                --|
- *
- *  (4) Argument ( k : Int => Int ) is a continuation; it takes the result and specifies what to do with it.
- *
- * Properties of continuation passing style:
- *
- *    (1) Every function involved has an extra argument 'k' for the continuation function 'k : Int => Int'
- *
- *    (2) The first call is passed a "termination continuation", typically 'x => x'
- *
- *    (3) Each code path ends with a function call, and all calls are tail calls
- *
- * Polymorphic Continuations:
- *
- *    (1) Continuation passing style can change the return type of each continuation function
- *
- *    (2) These continuations need to return multiple types
- *
- *    (3) Define the continuation functions more generally using brackets:
- *
- *                util_k[T1](x: Int, k: Int => T1): T1 = {}
- *
- *        This function takes an Int, and a function that takes an Int and returns type 'T1'
- *
- * Trampolines: A manual approach to tail call optimization
- *
- *    (1) Trampolines support continuation passing style in languages that do not do tail call optimization
- *
- * How?
- *
- *    (1) The tail call returns a closure of type 'CPSResult'
- *
- *    (2) While-loop tail calls while making sure the stack never grows
- *
- *    (3) CPS result can be:
- *
- *        >>> Call[T]: Call( f: () => CPSResult[T] ); call 'f' returns an object of type CPSResult[T]
- *
- *        >>> Done[T]: Encapsulates a value of type 'T'
- *
- * Example: Note -- Convert to CPS, then to trampoline; it seems to be easier that way
- *
- *      CPS form:
- *          def cFunc( x : .., k : .. => T ) : T = {   <----- k: Int => T, ret 'T'
- *              if ( base case )
- *                  return k( base args )              <----- Call 'k'
- *              else
- *                  ...
- *                  return tailCall( new_x, new_k )    <----- Call 'tailCall'
- *
- *      Trampolined:
- *          def tFunc( x : .., k : .. => CPSResult[T] ) : CPSResult[T] = {  <----- k: CPSResult[T], ret 'CPSResult[T]'
- *              if ( base case )
- *                  return Call( () => k( base args )                       <----- Return a call object
- *              else
- *                  return Call( () => tailCall( new_x, new_k_trampoline )  <----- Return a call object
- *
- *    (4) When the trampolined function is called, it returns a [ new function encapsulated inside a Call object ]
- *
- *    (5) Every function call 'f(..args..)' is replaced by 'Call( () => f(..args..) )'
- *
- *    (6) Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
- *        computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
+ *  Interpreter
  */
 object Notes {
   /*- Helpers for standard interpreter -*/
