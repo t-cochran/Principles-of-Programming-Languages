@@ -433,49 +433,60 @@ object ContinuationPassing {
    *    (6) Call object encapsulates a closure: () => [whatever we were calling originally]. The unit closure delays
    *        computation so scala does not evaluate k( base args ) or tailCall(...) which defeats the purpose.
    */
-  // OLD: CPS factorial function
+  /**
+   * OLD: CPS factorial
+   */
   def factorial_k[ T ]( n: Int, k: Int => T ): T = {
     if ( n <= 0 )
-      k( 1 ) // Will become: ( ) => { k( 1 ) }
+      k( 1 ) // Will become: Call( ( ) => k( 1 ) )
     else {
       /**
        * Will become:
-       * ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } )
+       *    Call( ( ) => t_factorial_k( n - 1,
+       *        v =>
+       *          Call( ( ) => k( n * v ) ) )
        */
       factorial_k( n - 1, v => { k( n * v ) } )
     }
   }
 
   /**
-   * NEW: Trampoline
-   *
-   * Return: Closure of type CPSResult[T] instead of continuation type 'T'
-   *
-   * sealed trait CPSResult[T]
-   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
-   * case class Done[T](v: T) extends CPSResult[T]
+   * NEW: Trampoline factorial function (converted from CPS factorial)
    */
-  // (4) Create the trampoline: called once for each 'n' in n!, return nested functions each wrapped in a call object
   def t_factorial_k[ T ]( n: Int, k: Int => CPSResult[ T ] ): CPSResult[ T ] = {
     if ( n <= 0 )
-      Call( ( ) => { k( 1 ) } )  // Wrap continuation call object
+      Call( ( ) => { k( 1 ) } )
     else
-      Call( ( ) => t_factorial_k( n - 1, v => { Call( ( ) => { k( n * v ) } ) } ) )  // Wrap recursive call object
+      Call( ( ) => t_factorial_k( n - 1,
+        v => {
+          Call( ( ) => { k( n * v ) } ) } ) )
   }
-  // (1) Factorial function is called
-  def factorial( n: Int ): Int = {
-    def terminal_continuation( x: Int ): CPSResult[ Int ] = { Done( x ) }  // (2) Wrap 'x' in 'Done' call object
-    var call_res = t_factorial_k( n, terminal_continuation )  // (3) Pass 'n' to 't_factorial_k', create the trampoline
 
-    // (5) While loop: Run functions in the 'trampoline'
+  /**
+   * NEW: Trampoline factorial
+   */
+  def factorial( n: Int ): Int = {
+    /**
+     * Call t_factorial_k, get a Call object closure
+     * Terminal continuation: Pattern matched by the while loop to stop computation
+     */
+    def terminal_continuation( x: Int ): CPSResult[ Int ] = { Done( x ) }
+    var call_res = t_factorial_k( n, terminal_continuation )
+
+    /**
+     * Pattern match the closure
+     */
     var done = false
     while ( !done ) {
       call_res match {
-        case Call( f ) => call_res = f( )  // goto the next nested 'Call' object, and call nested function 'f()'
-        case Done( v ) => done = true      // Stop when terminal_continuation is reached
+        case Call( f ) => call_res = f( )   // Call the closure, compute, get next closure
+        case Done( v ) => done = true       // exit the trampoline
       }
     }
-    // (6) Unwrap 'call_res = Done( v )' when the trampoline is over
+
+    /**
+     * Return the result
+     */
     call_res match {
       case Done( v ) => v  // Return result of the factorial computation
       case _ => throw new MatchError( s"Catch all: Call() should not be found here")
@@ -484,22 +495,19 @@ object ContinuationPassing {
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /**
-   * Example 9 -- Trampoline fibonacci
+   * OLD: CPS fibonacci
    */
-  // OLD: CPS fibonacci function
   def fib_k[ T ]( n : Int, k: Int => T ): T = {
     if (n <= 2)
       k( 1 )  // Will become: Call( ( ) => k( 1 ) )
     else {
       /**
        * Will become:
-       * Call( ( ) => tramp_fibonacci_k( n - 1,
-       *    v1 =>
-       *      Call( ( ) => tramp_fibonacci_k( n - 2,
-       *          v2 =>
-       *              Call( ( ) => k(v1 + v2) )
-       *          )
-       *      )
+       *    Call( ( ) => tramp_fibonacci_k( n - 1,
+       *        v1 =>
+       *          Call( ( ) => tramp_fibonacci_k( n - 2,
+       *              v2 =>
+       *                  Call( ( ) => k(v1 + v2) ) ) )
        */
       fib_k( n - 1,
         v1 =>
@@ -510,36 +518,29 @@ object ContinuationPassing {
       )
     }
   }
+
   /**
-   * NEW: Trampoline
-   *
-   * Return: Closure of type CPSResult[T] instead of continuation type 'T'
-   *
-   * sealed trait CPSResult[T]
-   * case class Call[T](f: () => CPSResult[T]) extends CPSResult[T]
-   * case class Done[T](v: T) extends CPSResult[T]
+   * NEW: Trampoline fibonacci function (converted from CPS fibonacci)
    */
   def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
     if (n <= 2) {
-      // since fibonacci should not call k, it returns a Call object to trampoline, which will call it.
       Call( () => k( 1 ) )
     }
     else
-    // was: fibonacci_k(n-1, v1 => fibonacci_k(n-2, v2 => k(v1+v2)))
-    // make it into a call object
-    // Do not forget to modify the continuation as well.
-    // Wherever you see a function being called, mechanically replace it by Call( () => fun-being-called)
       Call( () => {
         tramp_fibonacci_k( n - 1,
           v1 =>
-            Call(() => tramp_fibonacci_k( n - 2,
+            Call( () => tramp_fibonacci_k( n - 2,
               v2 =>
-                Call(() => k( v1 + v2 )
+                Call( () => k( v1 + v2 )
                 ))
             ))
       })
   }
 
+  /**
+   * NEW: Trampoline fibonacci
+   */
   def fibonacci(n: Int): Int = {
     /**
      * Call tramp_fibonacci_k, get a Call object closure
