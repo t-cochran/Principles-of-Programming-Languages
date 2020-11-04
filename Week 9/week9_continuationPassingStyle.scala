@@ -541,32 +541,25 @@ object ContinuationPassing {
   }
 
   def fibonacci(n: Int): Int = {
-
     /**
-     *  Terminal continuation: Pattern matched by the while loop to stop computation
+     * Call tramp_fibonacci_k, get a Call object closure
+     * Terminal continuation t: Pattern matched by the while loop to stop computation
      */
-    def terminal_continuation(t: Int): Done[Int] = Done(t)
+    var res: CPSResult[Int] = tramp_fibonacci_k(n, t => Done(t) )
 
     /**
-     * Call the fibonacci trampoline function, get a Call object closure
-     */
-    var res: CPSResult[Int] = tramp_fibonacci_k(n, terminal_continuation)
-
-    /**
-     * Pattern match the closure:
-     *    If Call => then compute, get next closure
-     *    If Done => exit the loop
+     * Pattern match the closure
      */
     var done = false
     while (!done) {
       res match {
-        case Call(f) => res = f()
-        case Done(v) => done = true
+        case Call(f) => res = f()    // Call the closure, compute, get next closure
+        case Done(v) => done = true  // exit the trampoline
       }
     }
 
     /**
-     * Pattern match the Done object and return the result
+     * Return the result
      */
     res match {
       case Call(f) => throw new IllegalArgumentException("Fib Trampoline: This should never happen")
