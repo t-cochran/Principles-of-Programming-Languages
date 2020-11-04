@@ -178,7 +178,6 @@ object ContinuationPassing {
     def k1(v1: Int): Int = {
       addK(v1, y, z, k) // (3) Call addK, v1=x*y, k=x=>x
     }
-
     multK(x, y, k1) // (1) Call multK, pass continuation k1
   }
   /* -------------------------------------------------------------------------------------------------------------- */
@@ -275,7 +274,6 @@ object ContinuationPassing {
       def k1(y1: Int): Int = { // Wrap the return in continuation 'k1'
         k(y1 + y - 2 * x) // Return values are passed to continuation function 'k'
       }
-
       func2_k(x, k1) // Call the continuation version of 'func2' and pass continuation 'k1'
     }
   }
@@ -293,26 +291,39 @@ object ContinuationPassing {
     func3(v4, v3) // (1) Tail call
   }
 
+  // Example 6 -- Continuation passing style abridged
+  def func6_k2(x: Int, k: Int => Int): Int = {
+    // **DONE**
+    // val v1 = func3(x, x - 2)  // func3_k(x, x - 2, v1 => func3(x - 2, x, v2 => func2(v1, v => k(func3(v1 + v2 + v3, v3)))
+    // val v2 = func3(x - 2, x)  // func3_k(x - 2, x, v2 => func2(v1, v => k(func3(v1 + v2 + v3, v3)))
+    // val v3 = func2(v1)        // func2_k(v1, v3 => k(func3(v1 + v2 + v3, v3))
+    // val v4 = v1 + v2 + v3     // k(func3(v1 + v2 + v3, v3))
+    // func3(v4, v3)
+    // **START**
+    func3_k(x, x - 2,
+      v1 =>
+        func3_k(x - 2, x,
+          v2 =>
+            func2_k(v1,
+              v3 =>
+                k(func3(v1 + v2 + v3, v3))
+            )
+        )
+    )
+  }
+
   // Example 6 -- Continuation passing style
   def func6_k(x: Int, k: Int => Int): Int = {
     def k1(v1: Int): Int = { // (4) Wrap the return in continuation 'k1'
-
       def k2(v2: Int): Int = { // (3) Wrap the return in continuation 'k2'
-
         def k3(v3: Int): Int = { // (2) Wrap the return in continuation 'k3'
-
           val v4 = v1 + v2 + v3
           k(func3(v4, v3)) // (1) Tail calls are passed the continuation 'k'
-
         }
-
         func2_k(v1, k3) // (2) Call the continuation version of 'func2' and pass continuation 'k3'
       }
-
       func3_k(x - 2, x, k2) // (3) Call the continuation version of 'func3' and pass continuation 'k2'
-
     }
-
     func3_k(x, x - 2, k1) // (4) Call the continuation version of 'func3' and pass continuation 'k1'
   }
   /* -------------------------------------------------------------------------------------------------------------- */
@@ -561,44 +572,47 @@ object ContinuationPassing {
 }
 /* -------------------------------------------------------------------------------------------------------------- */
 
-/**
- *  Interpreter
- */
 object Notes {
   /*- Helpers for standard interpreter -*/
   def valueToNumber(v: Value): Double = v match {
     case NumValue(d) => d
     case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a number")
   }
+
   def valueToBoolean(v: Value): Boolean = v match {
     case BoolValue(b) => b
     case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a boolean")
   }
+
   def valueToClosure(v: Value): Closure = v match {
     case Closure(x, e, pi) => Closure(x, e, pi)
-    case _ =>  throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a closure")
+    case _ => throw new IllegalArgumentException(s"Error: Asking me to convert Value: $v to a closure")
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /*- Eval function for standard interpreter -*/
-  def evalExpr(e: Expr, env: Map[String, Value]): Value =  {
-    def binaryOp(e1: Expr, e2: Expr) (fun: (Double , Double) => Double) : NumValue = {
+  def evalExpr(e: Expr, env: Map[String, Value]): Value = {
+    def binaryOp(e1: Expr, e2: Expr)(fun: (Double, Double) => Double): NumValue = {
       val v1 = valueToNumber(evalExpr(e1, env))
       val v2 = valueToNumber(evalExpr(e2, env))
       val v3 = fun(v1, v2)
       NumValue(v3)
     }
-    def applyArith1(e: Expr) (fun: Double => Double) : NumValue = {
+
+    def applyArith1(e: Expr)(fun: Double => Double): NumValue = {
       val v = valueToNumber(evalExpr(e, env))
       val v1 = fun(v)
       NumValue(v1)
     }
-    def boolOp(e1: Expr, e2: Expr) (fun: (Double, Double) => Boolean) : BoolValue = {
+
+    def boolOp(e1: Expr, e2: Expr)(fun: (Double, Double) => Boolean): BoolValue = {
       val v1 = valueToNumber(evalExpr(e1, env))
       val v2 = valueToNumber(evalExpr(e2, env))
       val v3 = fun(v1, v2)
       BoolValue(v3)
     }
+
     e match {
       /*- Constants and identifiers -*/
       case Const(f) => NumValue(f)
@@ -610,11 +624,9 @@ object Notes {
       }
 
       /*- Arithmetic -*/
-      case Plus(e1, e2) => binaryOp(e1, e2) ( _ + _ )
-      case Minus(e1, e2) => binaryOp(e1, e2) ( _ - _ )
-      case Mult(e1, e2) =>  binaryOp(e1, e2) (_ * _)
-
-      /*- Comparison -*/
+      case Plus(e1, e2) => binaryOp(e1, e2)(_ + _)
+      case Minus(e1, e2) => binaryOp(e1, e2)(_ - _)
+      case Mult(e1, e2) => binaryOp(e1, e2)(_ * _)
       case Geq(e1, e2) => boolOp(e1, e2)(_ >= _)
       case Eq(e1, e2) => boolOp(e1, e2)(_ == _)
 
@@ -644,7 +656,7 @@ object Notes {
         val v2 = evalExpr(e2, env)
         v1 match {
           case Closure(x, closure_ex, closed_env) => {
-            val new_env = closed_env + ( x -> v2)
+            val new_env = closed_env + (x -> v2)
             evalExpr(closure_ex, new_env)
           }
           case _ => throw new IllegalArgumentException(s"Function call: $e1 does not evaluate to a closure")
@@ -652,48 +664,176 @@ object Notes {
       }
     }
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   def evalProgram(p: Program) = {
-    val m: Map[String, Value] = Map[String,Value]()
+    val m: Map[String, Value] = Map[String, Value]()
     p match {
       case TopLevel(e) => evalExpr(e, m)
     }
   }
+
   /* -------------------------------------------------------------------------------------------------------------- */
 
   /*- Helpers for Continuation Passing Interpreter -*/
-  def valueToNumberCPS[T](v: Value, k: Double => T) : T = {
+  def valueToNumberCPS[T](v: Value, k: Double => T): T = {
     v match {
       case NumValue(d) => k(d)
       case _ => throw new IllegalArgumentException(s"Error converting $v to number")
     }
   }
-  def valueToBooleanCPS[T](v: Value, k: Boolean => T) : T = {
+
+  def valueToBooleanCPS[T](v: Value, k: Boolean => T): T = {
     v match {
       case BoolValue(b) => k(b)
       case _ => throw new IllegalArgumentException(s"Error converting $v to boolean")
     }
   }
-  def valueToClosureCPS[T](v: Value, k: Closure => T) : T = {
+
+  def valueToClosureCPS[T](v: Value, k: Closure => T): T = {
     v match {
       case Closure(x, e, pi) => k(Closure(x, e, pi))
       case _ => throw new IllegalArgumentException(s"Error converting $v to closure")
     }
   }
+
+  /*- Eval function for continuation passing interpreter -*/
+  def evalExprCPS[T](e: Expr, env: Map[String, Value], k: Value => Value): Value = {
+
+    /* Method to deal with binary arithmetic operations */
+    def applyArith2(e1: Expr, e2: Expr)(fun: (Double, Double) => Double) = {
+      /*
+      val u1 = evalExpr(e1, env)
+      val v1 = valueToNumber(u1)
+      val u2 = evalExpr(e2, env)   ~~>  evalExprCPS[Value](e2, env, {u2 => valueToNumberCPS[Value]( ... )})}
+      val v2 = valueToNumber(u2)   ~~>  valueToNumberCPS[Value](u2, {v2 => k(NumValue(fun(v1, v2))})
+      val v3 = fun(v1, v2)
+      NumValue(v3)                 ~~>  k(NumValue(fun(v1, v2))  Write as vals, convert to CPS from bottom to top
+      */
+      evalExprCPS[Value](e1, env, {
+        u1 =>
+          valueToNumberCPS[Value](u1, {
+            v1 => {
+              evalExprCPS[Value](e2, env, {
+                u2 => {
+                  valueToNumberCPS[Value](u2, {
+                    v2 => {
+                      k(NumValue(fun(v1, v2)))
+                    }
+                  })
+                }
+              })
+            }
+          })
+      })
+    }
+
+    /* Helper method to deal with comparison operators */
+    def applyComp(e1: Expr, e2: Expr)(fun: (Double, Double) => Boolean) = {
+      /* val u1 = evalExpr(e1, env)
+      val v1 = valueToNumber(u1)
+      val u2 = evalExpr(e2, env)
+      val v2 = valueToNumber(u2)
+      val v3 = fun(v1, v2)
+      BoolValue(v3)*/
+      evalExprCPS[Value](e1, env, {
+        u1 =>
+          valueToNumberCPS[Value](u1, {
+            v1 =>
+              evalExprCPS(e2, env, {
+                u2 =>
+                  valueToNumberCPS[Value](u2, {
+                    v2 => k(BoolValue(fun(v1, v2)))
+                  })
+              })
+          })
+      })
+    }
+
+    e match {
+      case Const(f) => k(NumValue(f))
+      case Ident(x) => {
+        if (env contains x)
+          k(env(x))
+        else
+          throw new IllegalArgumentException(s"Undefined identifier $x")
+      }
+      case Plus(e1, e2) => applyArith2(e1, e2)(_ + _)
+      case Minus(e1, e2) => applyArith2(e1, e2)(_ - _)
+      case Mult(e1, e2) => applyArith2(e1, e2)(_ * _)
+      case Geq(e1, e2) => applyComp(e1, e2)(_ >= _)
+      case Eq(e1, e2) => applyComp(e1, e2)(_ == _)
+
+      /*- If/Then/Else -*/
+      case IfThenElse(e1, e2, e3) => {
+        evalExprCPS(e1, env, {
+          case BoolValue(true) => evalExprCPS(e2, env, k)
+          case BoolValue(false) => evalExprCPS(e3, env, k)
+          case _ => throw new IllegalArgumentException(s"If-then-else condition expr: ${e1} is non-boolean")
+        })
+      }
+
+      /*- Let Binding -*/
+      case Let(x, e1, e2) => {
+        evalExprCPS(e1, env, {
+          v1 => {
+            val env2 = env + (x -> v1) // create a new extended env
+            evalExprCPS(e2, env2, k) // eval e2 under that.
+          }
+        })
+      }
+
+      /*- Function definitions and calls -*/
+      case FunDef(x, e) => {
+        k(Closure(x, e, env)) // Return a closure with the current enviroment.
+      }
+      case FunCall(e1, e2) => {
+        evalExprCPS(e1, env, {
+          v1 => {
+            evalExprCPS(e2, env, {
+              v2 => {
+                v1 match {
+                  case Closure(x, closure_ex, closed_env) => {
+                    // First extend closed_env by binding x to v2
+                    val new_env = closed_env + (x -> v2)
+                    // Evaluate the body of the closure under the extended environment.
+                    evalExprCPS(closure_ex, new_env, k)
+                  }
+                  case _ => throw new IllegalArgumentException(s"Function call error: expression $e1 does not evaluate to a closure")
+                }
+              }
+            })
+          }
+        })
+      }
+    }
+  }
   /* -------------------------------------------------------------------------------------------------------------- */
 
+  def evalProgramCPS(p: Program) = {
+    val m: Map[String, Value] = Map[String, Value]()
+    p match {
+      case TopLevel(e) => evalExprCPS(e, m, x => x)
+    }
+  }
+
+  /* -------------------------------------------------------------------------------------------------------------- */
 
   def main( args : Array[ String ] ) : Unit = {
 
     /**
      * (1) 'multAddK' defines continuation 'k1' then calls 'multK':
      *
-     * multAddK( 1, 2, 3, x => 2 * x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )
+     *    multAddK( 1, 2, 3, x => 2 * x )  ~~>  multK( 1, 2, k1(v)=addK(v, 2, 3, k: x => 2 * x) )
      *
      * (2) 'multK' calls the continuation 'k1':
      *
-     * multK( 1, 2, k1(v)=addK(v, 2, 3, k1) )  ~~>  k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => 2 * x )
+     *    multK( 1, 2, k1(v)=addK(v, 2, 3, k: x => 2 * x) )
+     *
+     *      MultK is called which calls k( x * y ) ...
+     *
+     *    k1( 1 * 2 ) ~~> addK( 2, 2, 3, k = x => 2 * x )
      *
      * (3) addK calls the continuation 'k':
      *
@@ -724,12 +864,35 @@ object Notes {
 
     println(ContinuationPassing.func6(3)) // Out: 3221322
     println(ContinuationPassing.func6_k(3, x => x)) // Out: 3221322
+    println(ContinuationPassing.func6_k2(3, x => x)) // Out: 3221322
 
     println(ContinuationPassing.mainFunc_1(5)) // Out: 77
     println(ContinuationPassing.mainFunc_2(5, x => x)) // Out: 77
 
     println(ContinuationPassing.mainFunc_1( 15 ))  // Out: 1717
     println(ContinuationPassing.mainFunc_2(15, x => x)) // Out: 1717
+    /* ------------------------------------------------------------------------------------------------------------ */
+
+    // Test 1 CPS interpreter
+    val p1 = TopLevel(
+      Let("square",                                 // let square =
+        FunDef("x", Mult(Ident("x"), Ident("x"))),  //    function (x) x * x in
+        FunCall(Ident("square"), Const(10))         //       square(10)
+      )
+    )
+    println(evalProgramCPS(p1))
+
+    // Test 2 CPS interpreter
+    val x = Ident("x")
+    val y = Ident("y")
+    val fdef_inner = FunDef("y", Plus(x, Mult(y, y)))       //  let x = 10 in
+    val fdef_outer = FunDef("x", fdef_inner)                //      let y = 15 in
+    val call_expr = FunCall(FunCall(Ident("sq1"), x), y)    //        let sq1 = function(x) {
+    val sq1_call = Let("sq1", fdef_outer, call_expr)        //                     function(y) { x + y * y }
+    val lety = Let("y", Const(15), sq1_call)                //                  } in
+    val letx = Let("x", Const(10), lety)                    //              sq1(x)(y)
+    val p2 = TopLevel(letx)
+    println(evalProgramCPS(p2))
     /* ------------------------------------------------------------------------------------------------------------ */
 
     // Test the trampoline for factorial and fibonacci
