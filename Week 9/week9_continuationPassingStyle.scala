@@ -489,18 +489,25 @@ object ContinuationPassing {
   // OLD: CPS fibonacci function
   def fib_k[ T ]( n : Int, k: Int => T ): T = {
     if (n <= 2)
-      k( 1 )  // Will become: ( ) => { k( 1 ) }
+      k( 1 )  // Will become: Call( ( ) => k( 1 ) )
     else {
       /**
        * Will become:
-       * Call( ( ) =>
-       *    tramp_fibonacci_k(n - 1, v1 =>
-       *        Call( ( ) =>
-       *            tramp_fibonacci_k(n - 2, v2 =>
-       *                Call( ( ) =>
-       *                    k(v1 + v2)
+       * Call( ( ) => tramp_fibonacci_k( n - 1,
+       *    v1 =>
+       *      Call( ( ) => tramp_fibonacci_k( n - 2,
+       *          v2 =>
+       *              Call( ( ) => k(v1 + v2) )
+       *          )
+       *      )
        */
-      fib_k( n - 1, v1 => fib_k( n - 2, v2 => k( v1 + v2 ) ) )
+      fib_k( n - 1,
+        v1 =>
+          fib_k( n - 2,
+            v2 =>
+              k( v1 + v2 )
+          )
+      )
     }
   }
   /**
@@ -515,58 +522,55 @@ object ContinuationPassing {
   def tramp_fibonacci_k[T](n: Int, k: Int => CPSResult[T]): CPSResult[T] = {
     if (n <= 2) {
       // since fibonacci should not call k, it returns a Call object to trampoline, which will call it.
-      return Call( () => { k( 1 ) } )
+      Call( () => k( 1 ) )
     }
     else
     // was: fibonacci_k(n-1, v1 => fibonacci_k(n-2, v2 => k(v1+v2)))
     // make it into a call object
     // Do not forget to modify the continuation as well.
     // Wherever you see a function being called, mechanically replace it by Call( () => fun-being-called)
-      return Call(() => {
-        tramp_fibonacci_k(n - 1,
-          v1 => Call(() => {
-            tramp_fibonacci_k(n - 2, v2 => {
-              Call(() => {
-                k(v1 + v2)
-              })
-            })
-          })
-        )
-      }
-      )
+      Call( () => {
+        tramp_fibonacci_k( n - 1,
+          v1 =>
+            Call(() => tramp_fibonacci_k( n - 2,
+              v2 =>
+                Call(() => k( v1 + v2 )
+                ))
+            ))
+      })
   }
 
   def fibonacci(n: Int): Int = {
+
+    /**
+     *  Terminal continuation: Pattern matched by the while loop to stop computation
+     */
+    def terminal_continuation(t: Int): Done[Int] = Done(t)
+
+    /**
+     * Call the fibonacci trampoline function, get a Call object closure
+     */
+    var res: CPSResult[Int] = tramp_fibonacci_k(n, terminal_continuation)
+
+    /**
+     * Pattern match the closure:
+     *    If Call => then compute, get next closure
+     *    If Done => exit the loop
+     */
     var done = false
-
-    def k(t: Int) = Done(t)
-
-    var res: CPSResult[Int] = tramp_fibonacci_k(n, k)
     while (!done) {
       res match {
-        case Call(f) => {
-          res = f()
-        }
-        case Done(v) => {
-          done = true
-        }
+        case Call(f) => res = f()
+        case Done(v) => done = true
       }
     }
-    while (!done) {
-      res match {
-        case Call(f) => {
-          res = f()
-        }
-        case Done(v) => {
-          done = true
-        }
-      }
-    }
+
+    /**
+     * Pattern match the Done object and return the result
+     */
     res match {
-      case Call(f) => throw new IllegalArgumentException("This should never happen -- since while loop above can only exit when done is true")
-      case Done(v: Int) => {
-        return v
-      }
+      case Call(f) => throw new IllegalArgumentException("Fib Trampoline: This should never happen")
+      case Done(v: Int) => v
     }
   }
 }
