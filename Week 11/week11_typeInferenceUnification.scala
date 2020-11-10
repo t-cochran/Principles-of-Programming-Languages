@@ -188,8 +188,43 @@ object Notes {
         tCons
       }
     }
+    /*---------------------------------------------------------------------------------------------------------------*/
 
-    println( "Initial commit " )
+    // Program 1: print equations
+    val p1 = TopLevel(
+      Let( "x",                                       // let x = 15 in
+        Const(15), Plus( Ident( "x" ), Const( 35 ) )    //    x + 35
+        )
+      )
+    val equations1 = generateAllEquations(p1)
+    /*---------------------------------------------------------------------------------------------------------------*/
 
+    // Program 2: print equations
+    val p2 = TopLevel(
+      Let( "f",                                                       // let f = function(x) {
+        FunDef( "x", Geq( Ident( "x" ), Const( 35 ) ) ),              //            x >= 35
+        Plus( FunCall( Ident( "f" ), Const( 20 ) ), Const( 35 ) ) )   //        } in
+      )                                                               //    f( 20 ) + 35
+    val equations2 = generateAllEquations(p2)
+    /*---------------------------------------------------------------------------------------------------------------*/
+
+    // Program 3: print equations
+    val p3 = TopLevel(                                        // let f = function(x) {
+      Let( "f",                                               //          x + x
+        FunDef( "x", Plus( Ident( "x" ), Ident( "x" ) ) ),    //        } in
+        FunCall( Ident( "f" ), Ident( "f" ) ) )               //    f( f )
+    )
+    val equations3 = generateAllEquations(p3)
+    /*---------------------------------------------------------------------------------------------------------------*/
+
+    // Program 4: print equations
+    val p4 = TopLevel(
+      Let( "x",
+        Const( 15 ),
+        Let( "y",
+          Plus( Ident( "x" ), Const( 30 ) ), Plus( Ident( "x" ), Ident( "y" ) ) ) )
+    )
+    val equations4 = generateAllEquations(p4)
+    /*---------------------------------------------------------------------------------------------------------------*/
   }
 }
