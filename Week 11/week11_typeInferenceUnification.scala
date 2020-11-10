@@ -18,6 +18,8 @@ case class Let(x: String, e1: Expr, e2: Expr) extends Expr
 case class FunDef(id: String, e: Expr) extends Expr
 case class FunCall(calledFun: Expr, argExpr: Expr) extends Expr
 case class LetRec(funName: String, param: String, funExpr: Expr, bodyExpr: Expr) extends Expr
+
+case class SolverError(msg: String) extends Exception
 /*-------------------------------------------------------------------------------------------------------------------*/
 
 sealed trait Type
@@ -62,11 +64,16 @@ case class TypeConstraints() {
   }
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
-
+/**
+ *  Type inference review:
+ *
+ *    (1) Make a type variable for every subexpression in the program
+ *    (2) Generate equations for each type variable
+ */
 object getEquations {
 
   /**
-   * Generate Type Variables
+   * Generate Type Variables, i.e. generate constraints
    *
    *    -> Traverse the program's AST and recursively generate new type variables
    *    -> tCons: List of equations
@@ -158,21 +165,91 @@ object getEquations {
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
 
-object Notes {
+/**
+ *  Solving type equations by substitution on the list of type equations:
+ *
+ *    let f: ??? function( x: ??? ) {    //  [f ~> tf], [function(..) {..} ~> tr]
+ *                  x >= 30              //  [x ~> tx], [x >= 30 ~> bool]
+ *              } in
+ *       f( 10 ) + 25                    // [f(10)+25 ~> num], [f(10) ~> tc]
+ *
+ *    Use substitution to solve the unknown types (tf, tr, tx, tc) systematically.
+ *    Substitution data structure: Map[ Type -> Constraint ]
+ */
+object substitutionHelpers {
+
+  /* Helper: Given Type 'tExpr', return true if it contains a type var */
+  def typeExprContainsVariable(tExpr: Type, tVar: TypeVar): Boolean = {
+    tExpr match {
+      case FunType(t1, t2) =>
+        typeExprContainsVariable(t1, tVar) || typeExprContainsVariable(t2, tVar) // Recursively search for type vars
+      case TypeVar(_) => tExpr == tVar
+      case _ => false
+    }
+  }
+
   /**
-   *  Type inference review:
+   * Return a substitution for a type expression (tExpr) by indexing a Mapping between [TypeVar |--> Type]
+   * If the mapping contains the typevar for the expression, then the substitution 'Type' is returned
    *
-   *    (1) Make a type variable for every subexpression in the program
-   *    (2) Generate equations for each type variable
-   *    (3) Solve equations using unification
+   * EX:
+   * (1) tExpr is type: (t1 => t2) => num
+   * (2) subst for t2 found! It is: t2 |---> (num => num)
+   * (3) Return: (t1 => (num => num)) => num
    *
-   *    let f: ??? function( x: ??? ) {    //  f ~> tf --- function(..) {..} ~> tr
-   *                  x >= 30              //  x ~> tx --- x >= 30 ~> bool
-   *              } in
-   *       f( 10 ) + 25                    // f(10)+25 ~> num --- f(10) ~> tc
-   *
-   *
+   * Given a type expression (tExpr), return the type that it substitutes for by indexing: TypeVar |--> Type
    */
+  def substituteExpr(tExpr: Type, subst: Map[TypeVar, Type]): Type = {
+    tExpr match {
+
+      /*- Type: TypeVar() index Map[TypeVar|-->Type], return Type -*/
+      case TypeVar(j) =>
+        if (subst contains TypeVar(j))
+          subst(TypeVar(j))
+        else
+          tExpr // No substitute exists, so you are left with the type expression you have
+
+      /*- Type: t1 => t2, recursively index Map[TypeVar|-->Type], return Type -*/
+      case FunType(t1, t2) =>
+        FunType(substituteExpr(t1, subst), substituteExpr(t2, subst))
+
+      /*- No substitute exists -*/
+      case _ =>
+        tExpr
+    }
+  }
+
+  /**
+   * Update the substitution map to contain a new rule 'tVar -> Type'
+   *
+   * If we do this, we must substitute type expressions that match the rule on the right hand side, for example:
+   *
+   *    t1 |-> t2 => t3                ADD NEW RULE: t2 |-> num => t3
+   *    t4 |-> num => num
+   *
+   *    t1 |-> (num => t3) => t3       Substitute t2 on the RHS with the new rule
+   *    t4 |-> num => num
+   *
+   *    t1 |-> (num => t3) => t3
+   *    t4 |-> num => num
+   *    t2 |-> num => t3              Include the new rule at the end
+   *
+   * At the end, we include the new rule
+   */
+  def updateSubstitutionWithNewRule(tVar: TypeVar, tExpr: Type, subst: Map[TypeVar, Type]): Map[TypeVar, Type] = {
+    assert(!subst.contains(tVar), s"Error: Substitution already contains the type variable $tVar")
+    assert(!typeExprContainsVariable(tExpr, tVar), "Substitution RHS cannot contain LHS variable")
+    val newSubst = subst.foldLeft[Map[TypeVar, Type]]( Map[TypeVar, Type]() ) {  // fold through each equation listed
+      case (m, (t, te)) =>
+        m + (t -> substituteExpr(te, Map(tVar -> tExpr)))  // Substitute tVar on the RHS if a substitute can occur
+    }
+    newSubst + (tVar -> tExpr)  // Add the new substitution rule 'tVar |-> tExpr' at the very end
+  }
+}
+/*-------------------------------------------------------------------------------------------------------------------*/
+
+object Notes {
+
   def main( args: Array[ String ] ): Unit = {
 
     /*- Print out the list of equations from a program -*/
@@ -192,7 +269,7 @@ object Notes {
 
     // Program 1: print equations
     val p1 = TopLevel(
-      Let( "x",                                       // let x = 15 in
+      Let( "x",                                         // let x = 15 in
         Const(15), Plus( Ident( "x" ), Const( 35 ) )    //    x + 35
         )
       )
@@ -219,10 +296,11 @@ object Notes {
 
     // Program 4: print equations
     val p4 = TopLevel(
-      Let( "x",
-        Const( 15 ),
-        Let( "y",
-          Plus( Ident( "x" ), Const( 30 ) ), Plus( Ident( "x" ), Ident( "y" ) ) ) )
+      Let( "x",                                       // let x = 15 in
+        Const( 15 ),                                  //    let y = x + 30 in
+        Let( "y",                                     //        x + y
+          Plus( Ident( "x" ), Const( 30 ) ),
+          Plus( Ident( "x" ), Ident( "y" ) ) ) )
     )
     val equations4 = generateAllEquations(p4)
     /*---------------------------------------------------------------------------------------------------------------*/
