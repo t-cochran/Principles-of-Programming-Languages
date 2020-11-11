@@ -369,6 +369,15 @@ object Notes {
         )
       )
     val equations1 = generateAllEquations(p1)
+    val typeInfer1 = {
+        try {
+          substitutionAlgorithm.processAllEquations(equations1)
+        }
+        catch {
+          case SolverError(msg) =>
+            println( s"Error: $msg" )
+        }
+    }
     /*---------------------------------------------------------------------------------------------------------------*/
 
     // Program 2: print equations
@@ -378,6 +387,15 @@ object Notes {
         Plus( FunCall( Ident( "f" ), Const( 20 ) ), Const( 35 ) ) )   //        } in
       )                                                               //    f( 20 ) + 35
     val equations2 = generateAllEquations(p2)
+    val typeInfer2 = {
+      try {
+        substitutionAlgorithm.processAllEquations(equations2)
+      }
+      catch {
+        case SolverError(msg) =>
+          println( s"Error: $msg" )
+      }
+    }
     /*---------------------------------------------------------------------------------------------------------------*/
 
     // Program 3: print equations
@@ -387,6 +405,15 @@ object Notes {
         FunCall( Ident( "f" ), Ident( "f" ) ) )               //    f( f )
     )
     val equations3 = generateAllEquations(p3)
+    val typeInfer3 = {
+      try {
+        substitutionAlgorithm.processAllEquations(equations3)
+      }
+      catch {
+        case SolverError(msg) =>
+          println( s"Error: $msg" )
+      }
+    }
     /*---------------------------------------------------------------------------------------------------------------*/
 
     // Program 4: print equations
@@ -398,6 +425,15 @@ object Notes {
           Plus( Ident( "x" ), Ident( "y" ) ) ) )
     )
     val equations4 = generateAllEquations(p4)
+    val typeInfer4 = {
+      try {
+        substitutionAlgorithm.processAllEquations(equations4)
+      }
+      catch {
+        case SolverError(msg) =>
+          println( s"Error: $msg" )
+      }
+    }
     /*---------------------------------------------------------------------------------------------------------------*/
   }
 }
