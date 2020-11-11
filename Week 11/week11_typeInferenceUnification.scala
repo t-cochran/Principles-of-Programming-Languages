@@ -248,6 +248,101 @@ object substitutionHelpers {
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
 
+object substitutionAlgorithm {
+
+  /*- Helper: Return true if 't' is Type: FunType -*/
+  def isFunctionType(t: Type) = {
+    t match {
+      case FunType(_,_) => true
+      case _ => false
+    }
+  }
+
+  /**
+   *  Given:
+   *      (1) A type equation 'teq'
+   *      (2) A ist of type equations (i.e. substitutions) 'subst'
+   *  Apply substitutions to the type equation and return an updated list of type equations
+   */
+  def processEquation(teq: TypeEquation, subst: Map[TypeVar, Type], msg: String = ""): Map[TypeVar, Type] =  {
+
+    /*- Apply all substitutions to the type equation 'teq' to get the overall types -*/
+    val (t1, t2) = {
+      teq match {
+        case TypeEquation(t1Hat, t2Hat) =>
+          ( substitutionHelpers.substituteExpr(t1Hat, subst), substitutionHelpers.substituteExpr(t2Hat, subst) )
+      }
+    }
+
+    /*- LHC == RHC: Done; return the updated list of type equations -*/
+    if (t1 == t2) {
+      subst
+    }
+
+    /*- LHC != RHC: Perform unification -*/
+    else {
+
+      (t1, t2) match {
+
+        /*- t1, t2 cannot be unified --------------------------------------------------------------------------------*/
+        case (NumType, BoolType) => {
+          throw new SolverError( msg=s"@ $msg: Numerical and Boolean types used interchangably")
+        }
+        case (BoolType, NumType) => {
+          throw new SolverError(msg=s"@ $msg: Numerical and Boolean types used interchangably")
+        }
+        case (NumType, tf) if isFunctionType(tf) => {
+          throw new SolverError( msg=s"@ $msg: Numerical and Function types used interchangably")
+        }
+        case (tf, NumType) if isFunctionType(tf) => {
+          throw new SolverError(msg=s"@ $msg: Numerical and Function types used interchangably")
+        }
+        case (BoolType, tf) if isFunctionType(tf) => {
+          throw new SolverError(msg=s"@ $msg: Numerical and Function types used interchangably")
+        }
+        case (tf, BoolType) if isFunctionType(tf) => {
+          throw new SolverError(msg=s"@ $msg: Numerical and Function types used interchangably")
+        }
+
+        /*- t1, t2 can be unified -----------------------------------------------------------------------------------*/
+        case (TypeVar(j), _ ) => {  // t1 is a TypeVar
+          if (substitutionHelpers.typeExprContainsVariable(t2, TypeVar(j))){
+            throw new SolverError(msg=s"@ $msg: Type variable also in the RHS of an equation: no solution can exist.")
+          }
+          substitutionHelpers.updateSubstitutionWithNewRule(TypeVar(j), t2, subst)  // Add TypeVar(j) |-> t2
+        }
+        case (_, TypeVar(j)) => {  // t2 is a TypeVar
+          assert(t1 != TypeVar(j))
+          if (substitutionHelpers.typeExprContainsVariable(t1, TypeVar(j))){
+            throw new SolverError(msg=s"@ $msg: Type variable also in the RHS of an equation: no solution can exist.")
+          }
+          substitutionHelpers.updateSubstitutionWithNewRule(TypeVar(j), t1, subst)  // Add TypeVar(j) |-> t1
+        }
+        case (FunType(t1Hat, t2Hat), FunType(t3Hat, t4Hat)) => {  // t1 and t2 are FunTypes
+          val subst1 = processEquation(TypeEquation(t1Hat, t3Hat), subst, msg)   // Apply substitutions to func1
+          val subst2 = processEquation(TypeEquation(t2Hat, t4Hat), subst1, msg)  // Apply substitutions to func2
+          subst2
+        }
+        case _ => {
+          throw new SolverError(msg=s"@ $msg:Cannot unify disparate types $t1, $t2")
+        }
+      }
+    }
+  }
+  /*-----------------------------------------------------------------------------------------------------------------*/
+
+  def processAllEquations(tCons: TypeConstraints): Unit = {
+    println("Equations: ")
+    tCons.printAllTypeEquations()
+    println("Solving:")
+    val finalSubst = tCons.l.foldLeft[Map[TypeVar, Type]] (Map()) {
+      case (subst, te1) => processEquation(te1, subst)
+    }
+    println(s"Solution: $finalSubst")
+  }
+}
+
+/*-------------------------------------------------------------------------------------------------------------------*/
 object Notes {
 
   def main( args: Array[ String ] ): Unit = {
