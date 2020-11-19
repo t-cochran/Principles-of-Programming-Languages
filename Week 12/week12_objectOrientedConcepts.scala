@@ -16,6 +16,7 @@ class Groceries( val chips: String, val water: String, val apples: String ) {
   def getChips: String = chips
   def getWater: String = water
   def getRice: String = rice
+  def getApples: String = apples
 
   /*- Setters -*/
   def setChips(newBagOfChips: String): Groceries = {
@@ -40,12 +41,12 @@ object Store {
   def name( storeName: String ) : Unit = println( s"Store name is: $storeName ")
 
   /*- Fill and return a cart of groceries -*/
-  def fillGroceryCart( val chips: String, val water: String, val apples: String ): Groceries = {
+  def fillGroceryCart( chips: String, water: String, apples: String ): Groceries = {
     new Groceries( chips, water, apples )
   }
 
 }
-
+/*-------------------------------------------------------------------------------------------------------------------*/
 
 
 
@@ -58,11 +59,15 @@ object Notes {
     println( shopping_1.getChips )
     println( shopping_1.getRice )
     println( shopping_1.getWater )
+    println( shopping_1.getApples )
 
-  /*- Ex 2: Access object methods -*/
-  val store_1 = Store.name( storeName="safeway" )
-  val groceryCart: Groceries = Store.fillGroceryCart(chips="corn chips", water="smart water", apples="granny smith")
-
+    /*- Ex 2: Access object methods -*/
+    val store_1 = Store.name( storeName="safeway" )
+    val groceryCart: Groceries = Store.fillGroceryCart(chips="corn chips", water="smart water", apples="granny smith")
+    println( groceryCart.getChips )
+    println( groceryCart.getRice )
+    println( groceryCart.getWater )
+    println( groceryCart.getApples )
   }
 
 }
