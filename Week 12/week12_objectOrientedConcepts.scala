@@ -83,7 +83,62 @@ object Store {
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
 
+/**
+ *  Composition
+ *      -> Build bigger structures from smaller ones
+ *      -> One object contains a reference to the others
+ *
+ *  Inheritance
+ *      -> Re-use code by implementing functionality common to many objects
+ *      -> Documents how concepts are inter-related
+ */
+class CanvasBox (val xc: Double, val yc: Double, val width: Double, val height: Double) {
+  override def toString =
+    s"CanvasBox: center at ($xc, $yc) with width= $width, height= $height"
+}
 
+/**
+ * Base class
+ */
+abstract class Shape {
+  def boundingBox: CanvasBox
+  def repOK: Boolean
+  def toString: String
+}
+
+/**
+ * Sub-class: Inherit methods from base class 'Shape'
+ */
+class Rectangle(val x1: Double, val y1: Double, val x2: Double, val y2: Double) extends Shape {
+  def centerX: Double = 0.5 * (x1+ x2)  // define some new methods
+  def centerY: Double = 0.5 * (y1 + y2)
+  def width: Double = x2 - x1
+  def height: Double = y2 - y1
+
+  override def repOK: Boolean = {     // override repOK from the base class
+    (x1 < x2) && (y1 < y2)
+  }
+  override def boundingBox: CanvasBox = {
+    new CanvasBox( this.centerX, this.centerY, (x2 - x1), (y2 - y1))
+  }
+  override def toString: String = {
+    s"Rectangle ($x1, $y1) to ($x2, $y2)"
+  }
+}
+
+/**
+ *  Sub-class: Inherit methods from base class 'Rectangle'; implicitly calls the super class constructor
+ */
+class ColoredRectangle(x1: Double, y1: Double, x2: Double, y2: Double, color: String) extends Rectangle(x1, y1, x2, y2)
+class Square(x: Double, y: Double, sideLength: Double) extends Rectangle( x - 0.5 * sideLength,
+                                                                          y - 0.5 * sideLength,
+                                                                          x + 0.5 * sideLength,
+                                                                          y + 0.5 * sideLength ) {
+  override def toString: String = {
+    s"Square centered at ($x, $y) with side $sideLength"
+  }
+}
+/*-------------------------------------------------------------------------------------------------------------------*/
 
 object Notes {
 
