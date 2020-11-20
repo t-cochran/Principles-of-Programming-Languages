@@ -53,8 +53,6 @@ class Tasks {
     numTasks = numTasks + 1
   }
 }
-
-
 /*-------------------------------------------------------------------------------------------------------------------*/
 
 /**
@@ -140,6 +138,16 @@ class Square(x: Double, y: Double, sideLength: Double) extends Rectangle( x - 0.
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
 
+/**
+ *  Upcasting: Inherited class ~~> Base class
+ *      -> e.g. square object ~~> shape object
+ *      -> asInstanceOf[] method is used to type cast in scala
+ *      -> e.g. square.isInstanceOf[Shape] upcasts a square object to shape
+ *      -> This method only works on child classes casted to parent classes (upcasting), not vice-versa
+ */
+
+
+/*-------------------------------------------------------------------------------------------------------------------*/
 object Notes {
 
   def main( args: Array[String] ): Unit = {
@@ -169,6 +177,17 @@ object Notes {
     task_list_1.addTask("and one more for good measure")
     println( task_list_1.getNumTasks )
     println( task_list_1.getTask( 2 ) )
+
+    /**
+     *  Ex 4: Upcasting example
+     */
+    val square = new Square(11, 20, sideLength = 40)
+    val rectangle = new Rectangle(x1 = 5, x2 = 10, y1 = 20, y2 = 25)
+    println(square.asInstanceOf[Shape])
+    println(rectangle.asInstanceOf[Shape])
+
+
+
   }
 
 }
